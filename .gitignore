@@ -1,0 +1,28 @@
+# Dependências do Node / build
+node_modules/
+.npm/
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Ambiente
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs
+.vscode/settings.json
+.idea/
+*.suo
+*.user
+
+# Tiles cacheados (não versionar)
+tiles-cache/

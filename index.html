@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1a2332" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CartaPro" />
+  <meta name="description" content="Visualização cartográfica tática e impressão profissional A3 com grade UTM — BrasilCartaPro" />
+
+  <title>BrasilCartaPro — Mapas Táticos</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+
+  <!-- MapLibre GL JS -->
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Splash Screen -->
+  <div id="splash-screen">
+    <div class="splash-inner">
+      <div class="splash-logo">
+        <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="40" cy="40" r="36" stroke="#4ade80" stroke-width="2" opacity="0.3"/>
+          <circle cx="40" cy="40" r="24" stroke="#4ade80" stroke-width="1.5" opacity="0.6"/>
+          <line x1="40" y1="4" x2="40" y2="76" stroke="#4ade80" stroke-width="1" opacity="0.4"/>
+          <line x1="4" y1="40" x2="76" y2="40" stroke="#4ade80" stroke-width="1" opacity="0.4"/>
+          <line x1="40" y1="4" x2="40" y2="22" stroke="#4ade80" stroke-width="2.5"/>
+          <polygon points="40,4 36,16 44,16" fill="#4ade80"/>
+          <circle cx="40" cy="40" r="4" fill="#4ade80"/>
+        </svg>
+      </div>
+      <h1 class="splash-title">BrasilCartaPro</h1>
+      <p class="splash-sub">Mapas Táticos</p>
+      <div class="splash-loader"><span></span></div>
+    </div>
+  </div>
+
+  <!-- App Shell -->
+  <div id="app" class="hidden">
+
+    <!-- Topbar -->
+    <header id="topbar">
+      <div class="topbar-left">
+        <button id="btn-toggle-panel" class="icon-btn" title="Painel de camadas" aria-label="Abrir painel">
+          <svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <div class="brand">
+          <span class="brand-name">CartaPro</span>
+          <span class="brand-badge">TÁTICO</span>
+        </div>
+      </div>
+      <div class="topbar-center" id="coord-display">
+        <span id="coord-lat">-20.3155°</span>
+        <span class="coord-sep">|</span>
+        <span id="coord-lon">-40.3128°</span>
+        <span class="coord-datum">SIRGAS 2000</span>
+      </div>
+      <div class="topbar-right">
+        <button id="btn-my-location" class="icon-btn" title="Minha localização" aria-label="Ir para minha localização">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="7" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+        </button>
+        <button id="btn-print" class="icon-btn accent" title="Imprimir carta A3" aria-label="Imprimir carta A3">
+          <svg viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Sidebar / Panel -->
+    <aside id="side-panel" class="panel-closed">
+      <div class="panel-header">
+        <h2>Camadas &amp; Controles</h2>
+        <button id="btn-close-panel" class="icon-btn small" aria-label="Fechar painel">
+          <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+
+      <!-- Base Layer Selector -->
+      <section class="panel-section">
+        <h3 class="section-title">Camada Base</h3>
+        <div class="layer-grid" id="layer-grid">
+          <button class="layer-btn active" data-layer="osm" id="layer-osm">
+            <span class="layer-icon">🗺️</span>
+            <span>OSM Padrão</span>
+          </button>
+          <button class="layer-btn" data-layer="topo" id="layer-topo">
+            <span class="layer-icon">🏔️</span>
+            <span>Topográfico</span>
+          </button>
+          <button class="layer-btn" data-layer="satellite" id="layer-satellite">
+            <span class="layer-icon">🛰️</span>
+            <span>Satélite</span>
+          </button>
+          <button class="layer-btn" data-layer="dark" id="layer-dark">
+            <span class="layer-icon">🌙</span>
+            <span>Escuro Tático</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Overlays -->
+      <section class="panel-section">
+        <h3 class="section-title">Sobreposições</h3>
+        <label class="toggle-row" for="toggle-grid">
+          <span class="toggle-label">
+            <span class="toggle-icon">📐</span>
+            Grade UTM
+          </span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="toggle-grid" checked />
+            <span class="toggle-slider"></span>
+          </div>
+        </label>
+        <label class="toggle-row" for="toggle-inde-wms">
+          <span class="toggle-label">
+            <span class="toggle-icon">🏛️</span>
+            INDE/DSG (WMS)
+          </span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="toggle-inde-wms" />
+            <span class="toggle-slider"></span>
+          </div>
+        </label>
+        <label class="toggle-row" for="toggle-ibge">
+          <span class="toggle-label">
+            <span class="toggle-icon">📍</span>
+            Limites IBGE
+          </span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="toggle-ibge" />
+            <span class="toggle-slider"></span>
+          </div>
+        </label>
+      </section>
+
+      <!-- Scale Selector -->
+      <section class="panel-section">
+        <h3 class="section-title">Escala de Impressão</h3>
+        <div class="scale-selector">
+          <select id="print-scale" aria-label="Selecionar escala de impressão">
+            <option value="5000">1:5.000</option>
+            <option value="10000">1:10.000</option>
+            <option value="25000" selected>1:25.000</option>
+            <option value="50000">1:50.000</option>
+            <option value="100000">1:100.000</option>
+            <option value="250000">1:250.000</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- Coordinate Search -->
+      <section class="panel-section">
+        <h3 class="section-title">Buscar Coordenadas</h3>
+        <div class="search-box">
+          <input type="text" id="coord-search" placeholder="Ex: -20.3155, -40.3128" aria-label="Buscar por coordenadas" />
+          <button id="btn-go-coord" class="btn-primary" aria-label="Ir para coordenadas">Ir</button>
+        </div>
+        <p class="search-hint">Latitude, Longitude (graus decimais)</p>
+      </section>
+
+      <!-- Map Info -->
+      <section class="panel-section">
+        <h3 class="section-title">Informações</h3>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">Datum</span>
+            <span class="info-value mono">SIRGAS 2000</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Projeção</span>
+            <span class="info-value mono">UTM</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Zoom</span>
+            <span class="info-value mono" id="info-zoom">13</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Fuso UTM</span>
+            <span class="info-value mono" id="info-zone">24S</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="panel-footer">
+        <p>BrasilCartaPro v1.0</p>
+        <p>© 2026 · Dados OSM, INDE/DSG, IBGE</p>
+      </div>
+    </aside>
+
+    <!-- Map Container -->
+    <main id="map-container">
+      <div id="map"></div>
+
+      <!-- Scale Bar -->
+      <div id="scale-bar">
+        <div id="scale-line"></div>
+        <span id="scale-label">— km</span>
+      </div>
+
+      <!-- Compass -->
+      <div id="compass-widget">
+        <canvas id="compass-canvas" width="80" height="80"></canvas>
+        <span id="compass-declination">24° W</span>
+      </div>
+
+      <!-- UTM Coordinates Overlay -->
+      <div id="utm-overlay">
+        <span id="utm-e">E —</span>
+        <span id="utm-n">N —</span>
+      </div>
+
+      <!-- Zoom Controls -->
+      <div id="zoom-controls">
+        <button id="btn-zoom-in" class="zoom-btn" aria-label="Mais zoom">+</button>
+        <button id="btn-zoom-out" class="zoom-btn" aria-label="Menos zoom">−</button>
+      </div>
+    </main>
+
+    <!-- Print Preview Overlay -->
+    <div id="print-overlay" class="hidden">
+      <div class="print-modal">
+        <div class="print-modal-header">
+          <h2>🗺️ Imprimir Carta A3</h2>
+          <button id="btn-close-print" class="icon-btn small" aria-label="Fechar">
+            <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="print-modal-body">
+          <label for="print-title">Título da Carta</label>
+          <input type="text" id="print-title" value="CARTA TÁTICA" placeholder="Título do mapa" />
+
+          <label for="print-subtitle">Subtítulo / Área</label>
+          <input type="text" id="print-subtitle" value="Região Metropolitana de Vitória — ES" placeholder="Subtítulo" />
+
+          <label for="print-classification">Classificação</label>
+          <select id="print-classification">
+            <option value="">Sem classificação</option>
+            <option value="USO INTERNO">USO INTERNO</option>
+            <option value="CONTROLADO">CONTROLADO</option>
+            <option value="RESTRITO">RESTRITO</option>
+          </select>
+
+          <div class="print-options">
+            <label class="checkbox-row">
+              <input type="checkbox" id="print-include-grid" checked />
+              <span>Incluir grade UTM</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="print-include-compass" checked />
+              <span>Incluir rosa dos ventos</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="print-include-scale" checked />
+              <span>Incluir barra de escala</span>
+            </label>
+          </div>
+        </div>
+        <div class="print-modal-footer">
+          <button id="btn-export-png" class="btn-secondary">⬇ Exportar PNG</button>
+          <button id="btn-do-print" class="btn-primary">🖨️ Imprimir A3</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container"></div>
+
+  </div><!-- /#app -->
+
+  <script src="modules/grid.js"></script>
+  <script src="modules/compass.js"></script>
+  <script src="modules/layers.js"></script>
+  <script src="modules/print.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
