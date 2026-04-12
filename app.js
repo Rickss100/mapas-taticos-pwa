@@ -358,12 +358,37 @@ function _triggerPrint(dataUrl, size, orientation) {
     styleEl.id = '_print-page-style';
     document.head.appendChild(styleEl);
   }
+  
+  // Corrige problema no landscape: força a imagem a ocupar vw/vh completo da caixa impressa
   styleEl.textContent = `
     @media print {
       @page { size: ${pageSize}; margin: 0; }
+      html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
       body > *:not(#_print-zone) { display: none !important; }
-      #_print-zone { display: block !important; width: 100%; margin: 0; padding: 0; }
-      #_print-zone img { width: 100% !important; height: auto !important; display: block; }
+      #_print-zone { 
+        display: flex !important; 
+        position: absolute;
+        inset: 0;
+        width: 100%; 
+        height: 100%;
+        margin: 0; 
+        padding: 0; 
+        align-items: center;
+        justify-content: center;
+      }
+      #_print-zone img { 
+        max-width: 100% !important; 
+        max-height: 100% !important; 
+        width: 100vw !important;
+        height: 100vh !important;
+        object-fit: contain; 
+        display: block; 
+      }
     }
   `;
 
