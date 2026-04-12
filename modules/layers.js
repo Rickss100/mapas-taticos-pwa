@@ -94,6 +94,19 @@
     attribution: 'IBGE BC250',
   };
 
+  // IBGE Curvas de Nível (1:250.000)
+  const CONTOUR_WMS = {
+    type: 'raster',
+    tiles: [
+      'https://geoservicos.ibge.gov.br/geoserver/CCAR/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap'
+      + '&SRS=EPSG:4326&TRANSPARENT=TRUE&FORMAT=image/png'
+      + '&LAYERS=CCAR:BC250_Curva_Nivel_L&STYLES=&'
+      + 'BBOX={bbox-epsg-4326}&WIDTH=256&HEIGHT=256',
+    ],
+    tileSize: 256,
+    attribution: 'IBGE — Curvas de Nível',
+  };
+
   const LayerManager = {
     _map: null,
     _currentBase: 'osm',
@@ -110,16 +123,30 @@
       const style = STYLES[name] || STYLES.osm;
 
       // Preserva overlays
-      const indeActive = this.isOverlayActive('inde-wms');
-      const ibgeActive = this.isOverlayActive('ibge');
+      const indeActive    = this.isOverlayActive('inde-wms');
+      const ibgeActive    = this.isOverlayActive('ibge');
+      const contourActive = this.isOverlayActive('contour-wms');
+
+      // Preserva opacidades atuais se os sliders estiverem definidos na UI
+      const getOp = (id) => {
+        const el = document.getElementById(id);
+        return el ? parseInt(el.value) / 100 : 0.8;
+      };
+      
+      this._lastOpacities = {
+        inde: getOp('opacity-inde'),
+        ibge: getOp('opacity-ibge'),
+        contour: getOp('opacity-contour')
+      };
 
       map.setStyle(style);
       this._currentBase = name;
 
       // Reaplica overlays após o style carregar
       map.once('style.load', () => {
-        if (indeActive) this._addInde();
-        if (ibgeActive) this._addIbge();
+        if (indeActive)    this._addInde();
+        if (ibgeActive)    this._addIbge();
+        if (contourActive) this._addContour();
         window.UTMGrid && window.UTMGrid._draw();
       });
     },
@@ -138,23 +165,41 @@
       else        this._removeLayer('ibge');
     },
 
+    toggleContour(active) {
+      if (active) this._addContour();
+      else        this._removeLayer('contour-wms');
+    },
+
+    setOverlayOpacity(layerId, opacityValue) {
+      if (this.isOverlayActive(layerId)) {
+        this._map.setPaintProperty(layerId, 'raster-opacity', opacityValue);
+      }
+    },
+
     _addInde() {
       const map = this._map;
-      if (!map.getSource('inde-src')) {
-        map.addSource('inde-src', INDE_WMS);
-      }
+      if (!map.getSource('inde-src')) map.addSource('inde-src', INDE_WMS);
       if (!map.getLayer('inde-wms')) {
-        map.addLayer({ id: 'inde-wms', type: 'raster', source: 'inde-src', paint: { 'raster-opacity': 0.7 } });
+        const op = this._lastOpacities?.inde ?? (document.getElementById('opacity-inde') ? parseInt(document.getElementById('opacity-inde').value)/100 : 0.7);
+        map.addLayer({ id: 'inde-wms', type: 'raster', source: 'inde-src', paint: { 'raster-opacity': op } });
       }
     },
 
     _addIbge() {
       const map = this._map;
-      if (!map.getSource('ibge-src')) {
-        map.addSource('ibge-src', IBGE_WMS);
-      }
+      if (!map.getSource('ibge-src')) map.addSource('ibge-src', IBGE_WMS);
       if (!map.getLayer('ibge')) {
-        map.addLayer({ id: 'ibge', type: 'raster', source: 'ibge-src', paint: { 'raster-opacity': 0.8 } });
+        const op = this._lastOpacities?.ibge ?? (document.getElementById('opacity-ibge') ? parseInt(document.getElementById('opacity-ibge').value)/100 : 0.8);
+        map.addLayer({ id: 'ibge', type: 'raster', source: 'ibge-src', paint: { 'raster-opacity': op } });
+      }
+    },
+
+    _addContour() {
+      const map = this._map;
+      if (!map.getSource('contour-src')) map.addSource('contour-src', CONTOUR_WMS);
+      if (!map.getLayer('contour-wms')) {
+        const op = this._lastOpacities?.contour ?? (document.getElementById('opacity-contour') ? parseInt(document.getElementById('opacity-contour').value)/100 : 0.8);
+        map.addLayer({ id: 'contour-wms', type: 'raster', source: 'contour-src', paint: { 'raster-opacity': op } });
       }
     },
 

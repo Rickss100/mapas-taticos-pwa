@@ -112,6 +112,8 @@
       <!-- Overlays -->
       <section class="panel-section">
         <h3 class="section-title">Sobreposições</h3>
+        
+        <!-- Grade UTM -->
         <label class="toggle-row" for="toggle-grid">
           <span class="toggle-label">
             <span class="toggle-icon">📐</span>
@@ -122,26 +124,63 @@
             <span class="toggle-slider"></span>
           </div>
         </label>
-        <label class="toggle-row" for="toggle-inde-wms">
-          <span class="toggle-label">
-            <span class="toggle-icon">🏛️</span>
-            INDE/DSG (WMS)
-          </span>
-          <div class="toggle-switch">
-            <input type="checkbox" id="toggle-inde-wms" />
-            <span class="toggle-slider"></span>
+
+        <!-- Curvas de Nível -->
+        <div class="overlay-group">
+          <label class="toggle-row" for="toggle-contour">
+            <span class="toggle-label">
+              <span class="toggle-icon">🏔️</span>
+              Curvas de Nível
+            </span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="toggle-contour" />
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+          <div class="opacity-control" id="opacity-control-contour" style="display:none">
+            <span class="opacity-icon">◐</span>
+            <input type="range" id="opacity-contour" min="0" max="100" value="80" />
+            <span class="opacity-val" id="oval-contour">80%</span>
           </div>
-        </label>
-        <label class="toggle-row" for="toggle-ibge">
-          <span class="toggle-label">
-            <span class="toggle-icon">📍</span>
-            Limites IBGE
-          </span>
-          <div class="toggle-switch">
-            <input type="checkbox" id="toggle-ibge" />
-            <span class="toggle-slider"></span>
+        </div>
+
+        <!-- Carta Topo INDE -->
+        <div class="overlay-group">
+          <label class="toggle-row" for="toggle-inde-wms">
+            <span class="toggle-label">
+              <span class="toggle-icon">🏛️</span>
+              Carta Topo (DSG)
+            </span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="toggle-inde-wms" />
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+          <div class="opacity-control" id="opacity-control-inde" style="display:none">
+            <span class="opacity-icon">◐</span>
+            <input type="range" id="opacity-inde" min="0" max="100" value="70" />
+            <span class="opacity-val" id="oval-inde">70%</span>
           </div>
-        </label>
+        </div>
+
+        <!-- Limites IBGE -->
+        <div class="overlay-group">
+          <label class="toggle-row" for="toggle-ibge">
+            <span class="toggle-label">
+              <span class="toggle-icon">📍</span>
+              Limites IBGE
+            </span>
+            <div class="toggle-switch">
+              <input type="checkbox" id="toggle-ibge" />
+              <span class="toggle-slider"></span>
+            </div>
+          </label>
+          <div class="opacity-control" id="opacity-control-ibge" style="display:none">
+            <span class="opacity-icon">◐</span>
+            <input type="range" id="opacity-ibge" min="0" max="100" value="80" />
+            <span class="opacity-val" id="oval-ibge">80%</span>
+          </div>
+        </div>
       </section>
 
       <!-- Scale Selector -->

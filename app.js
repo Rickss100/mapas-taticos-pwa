@@ -132,15 +132,31 @@ function bindToggleOverlays() {
     toast(`Grade UTM ${e.target.checked ? 'ativada' : 'desativada'}`, 'info');
   });
 
-  $('toggle-inde-wms').addEventListener('change', e => {
-    LayerManager.toggleInde(e.target.checked);
-    toast(`INDE/DSG WMS ${e.target.checked ? 'ativado' : 'desativado'}`, 'info');
-  });
+  // Layer toggles
+  const bindOverlay = (toggleId, ctrlId, toggleFn, name) => {
+    $(toggleId).addEventListener('change', e => {
+      toggleFn.call(LayerManager, e.target.checked);
+      $(ctrlId).style.display = e.target.checked ? 'flex' : 'none';
+      toast(`${name} ${e.target.checked ? 'ativado' : 'desativado'}`, 'info');
+    });
+  };
 
-  $('toggle-ibge').addEventListener('change', e => {
-    LayerManager.toggleIbge(e.target.checked);
-    toast(`Limites IBGE ${e.target.checked ? 'ativados' : 'desativados'}`, 'info');
-  });
+  bindOverlay('toggle-contour',  'opacity-control-contour', LayerManager.toggleContour, 'Curvas de Nível');
+  bindOverlay('toggle-inde-wms', 'opacity-control-inde',    LayerManager.toggleInde,    'Carta Topo (DSG)');
+  bindOverlay('toggle-ibge',     'opacity-control-ibge',    LayerManager.toggleIbge,    'Limites IBGE');
+
+  // Opacity sliders
+  const bindOpacity = (sliderId, valId, layerId) => {
+    const slider = $(sliderId);
+    slider.addEventListener('input', e => {
+      $(valId).textContent = `${e.target.value}%`;
+      LayerManager.setOverlayOpacity(layerId, parseInt(e.target.value) / 100);
+    });
+  };
+
+  bindOpacity('opacity-contour', 'oval-contour', 'contour-wms');
+  bindOpacity('opacity-inde',    'oval-inde',    'inde-wms');
+  bindOpacity('opacity-ibge',    'oval-ibge',    'ibge');
 }
 
 // ── Busca por coordenadas ────────────────────────────────────

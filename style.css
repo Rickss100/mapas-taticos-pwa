@@ -360,6 +360,47 @@ html, body {
   background: var(--c-green);
 }
 
+/* Opacity Slider for Overlays */
+.opacity-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 8px 32px;
+  animation: fade-in 0.2s ease-out;
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.opacity-icon {
+  font-size: 0.8rem;
+  color: var(--c-text-dim);
+}
+.opacity-control input[type="range"] {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 4px;
+  background: var(--c-surface3);
+  border-radius: 2px;
+  outline: none;
+}
+.opacity-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c-green);
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+}
+.opacity-val {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--c-text-dim);
+  width: 28px;
+  text-align: right;
+}
+
 /* Scale Selector */
 .scale-selector select {
   width: 100%;
