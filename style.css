@@ -753,13 +753,222 @@ html, body {
   border-radius: 99px;
 }
 
+/* ---------- Print Hint ---------- */
+.print-hint {
+  font-size: 0.72rem;
+  color: var(--c-text-dim);
+  line-height: 1.5;
+  padding: 8px 10px;
+  background: rgba(74,222,128,0.05);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-sm);
+}
+.print-hint strong { color: var(--c-green); }
+
+/* ---------- Format/Orientation Toggle Buttons ---------- */
+.fmt-group {
+  display: flex;
+  gap: 6px;
+}
+.fmt-btn {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--c-border2);
+  background: var(--c-surface2);
+  color: var(--c-text-muted);
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--tr);
+  text-align: center;
+}
+.fmt-btn:hover {
+  background: var(--c-surface3);
+  color: var(--c-text);
+  border-color: var(--c-border2);
+}
+.fmt-btn.active {
+  background: rgba(74,222,128,0.12);
+  border-color: var(--c-green-dim);
+  color: var(--c-green);
+  font-weight: 700;
+  box-shadow: inset 0 0 10px rgba(74,222,128,0.06);
+}
+
+/* ============================================================
+   Moldura de Impressão — PrintFrame
+   ============================================================ */
+
+/* Overlay de fundo (cobre o mapa) */
+#pf-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; /* Deixa eventos de mapa passarem */
+}
+
+/* Retângulo da moldura */
+#pf-frame {
+  position: relative;
+  flex-shrink: 0;
+  border: 2px solid rgba(74,222,128,0.9);
+  /* Escurece tudo fora da moldura */
+  box-shadow:
+    0 0 0 9999px rgba(0,0,0,0.52),
+    0 0 0 3px rgba(74,222,128,0.12),
+    0 0 30px rgba(74,222,128,0.15);
+}
+
+/* Cantos de marcação */
+.pf-c {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-color: var(--c-green);
+  border-style: solid;
+}
+.pf-tl { top: -3px;    left: -3px;   border-width: 3px 0 0 3px; }
+.pf-tr { top: -3px;    right: -3px;  border-width: 3px 3px 0 0; }
+.pf-bl { bottom: -3px; left: -3px;   border-width: 0 0 3px 3px; }
+.pf-br { bottom: -3px; right: -3px;  border-width: 0 3px 3px 0; }
+
+/* Badge do tamanho do papel */
+.pf-badge {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(13,21,32,0.88);
+  border: 1px solid rgba(74,222,128,0.3);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: var(--c-green);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+}
+
+/* Fio de mira central */
+.pf-ch-h {
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  height: 1px;
+  background: rgba(74,222,128,0.1);
+  transform: translateY(-50%);
+}
+.pf-ch-v {
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: rgba(74,222,128,0.1);
+  transform: translateX(-50%);
+}
+
+/* Barra de ação inferior */
+#pf-bar {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: all; /* Captura cliques nos botões */
+  background: rgba(13,21,32,0.92);
+  border: 1px solid rgba(74,222,128,0.18);
+  border-radius: 14px;
+  padding: 10px 14px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+  white-space: nowrap;
+}
+
+/* Display de escala ao vivo */
+.pf-scale-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 8px;
+}
+#pf-scale-val {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--c-amber);
+  line-height: 1;
+}
+.pf-scale-lbl {
+  font-size: 0.58rem;
+  color: var(--c-text-dim);
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+}
+
+/* Botões genéricos da barra */
+.pf-btn {
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(74,222,128,0.2);
+  background: rgba(74,222,128,0.06);
+  color: var(--c-text-muted);
+  font-size: 0.78rem;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.pf-btn:hover {
+  background: rgba(74,222,128,0.12);
+  color: var(--c-text);
+}
+.pf-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Botão de zoom para escala alvo */
+.pf-secondary {
+  color: var(--c-amber);
+  border-color: rgba(251,191,36,0.3);
+  background: rgba(251,191,36,0.07);
+}
+.pf-secondary:hover {
+  background: rgba(251,191,36,0.14);
+  color: var(--c-amber);
+}
+
+/* Botão de captura (primário) */
+.pf-primary {
+  color: var(--c-bg);
+  background: var(--c-green);
+  border-color: var(--c-green);
+  font-weight: 700;
+}
+.pf-primary:hover {
+  background: var(--c-green-dim);
+  border-color: var(--c-green-dim);
+  box-shadow: 0 0 16px rgba(74,222,128,0.45);
+}
+
 /* ---------- Print Media ---------- */
 @media print {
   #topbar, #side-panel, #zoom-controls, #compass-widget,
-  #scale-bar, #utm-overlay, #toast-container, #print-overlay { display: none !important; }
+  #scale-bar, #utm-overlay, #toast-container,
+  #print-overlay, #pf-overlay { display: none !important; }
   #map-container { position: fixed; inset: 0; }
   #map { width: 100%; height: 100%; }
-  @page { size: A3 landscape; margin: 10mm; }
 }
 
 /* ---------- Responsive ---------- */
@@ -768,4 +977,7 @@ html, body {
   .topbar-center { display: none; }
   .brand-name { font-size: 0.85rem; }
   #compass-widget { right: 52px; }
+  #pf-bar { gap: 5px; padding: 8px 10px; }
+  .pf-btn { font-size: 0.72rem; padding: 6px 9px; }
 }
+

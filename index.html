@@ -231,13 +231,13 @@
     <div id="print-overlay" class="hidden">
       <div class="print-modal">
         <div class="print-modal-header">
-          <h2>🗺️ Imprimir Carta A3</h2>
+          <h2>🗺️ Configurar Impressão</h2>
           <button id="btn-close-print" class="icon-btn small" aria-label="Fechar">
             <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
           </button>
         </div>
         <div class="print-modal-body">
-          <label for="print-title">Título da Carta</label>
+          <label for="print-title">Título</label>
           <input type="text" id="print-title" value="CARTA TÁTICA" placeholder="Título do mapa" />
 
           <label for="print-subtitle">Subtítulo / Área</label>
@@ -251,24 +251,32 @@
             <option value="RESTRITO">RESTRITO</option>
           </select>
 
-          <div class="print-options">
-            <label class="checkbox-row">
-              <input type="checkbox" id="print-include-grid" checked />
-              <span>Incluir grade UTM</span>
-            </label>
-            <label class="checkbox-row">
-              <input type="checkbox" id="print-include-compass" checked />
-              <span>Incluir rosa dos ventos</span>
-            </label>
-            <label class="checkbox-row">
-              <input type="checkbox" id="print-include-scale" checked />
-              <span>Incluir barra de escala</span>
-            </label>
+          <label>Formato do Papel</label>
+          <div class="fmt-group" id="fmt-size-group">
+            <button class="fmt-btn active" data-size="A4" id="fmt-btn-a4">A4</button>
+            <button class="fmt-btn" data-size="A3" id="fmt-btn-a3">A3</button>
           </div>
+
+          <label>Orientação</label>
+          <div class="fmt-group" id="fmt-orient-group">
+            <button class="fmt-btn active" data-orient="landscape" id="fmt-btn-landscape">⬜ Paisagem</button>
+            <button class="fmt-btn" data-orient="portrait" id="fmt-btn-portrait">⬛ Retrato</button>
+          </div>
+
+          <label for="print-target-scale">Escala Alvo</label>
+          <select id="print-target-scale">
+            <option value="5000">1:5.000</option>
+            <option value="10000">1:10.000</option>
+            <option value="25000" selected>1:25.000</option>
+            <option value="50000">1:50.000</option>
+            <option value="100000">1:100.000</option>
+            <option value="250000">1:250.000</option>
+          </select>
+
+          <p class="print-hint">💡 O botão <strong>⊙ Escala</strong> ajusta o zoom automaticamente após enquadrar.</p>
         </div>
         <div class="print-modal-footer">
-          <button id="btn-export-png" class="btn-secondary">⬇ Exportar PNG</button>
-          <button id="btn-do-print" class="btn-primary">🖨️ Imprimir A3</button>
+          <button id="btn-frame-map" class="btn-primary">📐 Enquadrar no Mapa</button>
         </div>
       </div>
     </div>
@@ -282,6 +290,7 @@
   <script src="modules/compass.js"></script>
   <script src="modules/layers.js"></script>
   <script src="modules/print.js"></script>
+  <script src="modules/printframe.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

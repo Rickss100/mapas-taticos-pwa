@@ -46,13 +46,14 @@ function initMap() {
   };
 
   map = new maplibregl.Map({
-    container:          'map',
-    style:              OSM_STYLE,
-    center:             VITORIA_CENTER,
-    zoom:               INITIAL_ZOOM,
-    attributionControl: false,
-    maxZoom:            20,
-    minZoom:            3,
+    container:              'map',
+    style:                  OSM_STYLE,
+    center:                 VITORIA_CENTER,
+    zoom:                   INITIAL_ZOOM,
+    attributionControl:     false,
+    maxZoom:                20,
+    minZoom:                3,
+    preserveDrawingBuffer:  true, // necessário para captura de canvas
   });
 
   // Attribution compacta
@@ -281,35 +282,115 @@ function bindPrintModal() {
     if (e.target === $('print-overlay')) $('print-overlay').classList.add('hidden');
   });
 
-  $('btn-do-print').addEventListener('click', () => {
-    $('print-overlay').classList.add('hidden');
-    setTimeout(() => PrintEngine.printA3(), 300);
+  // Botões de formato de papel
+  document.querySelectorAll('.fmt-btn[data-size]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.fmt-btn[data-size]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
   });
 
-  $('btn-export-png').addEventListener('click', async () => {
-    $('btn-export-png').disabled    = true;
-    $('btn-export-png').textContent = '⏳ Gerando…';
-    toast('Gerando imagem PNG…', 'info');
+  // Botões de orientação
+  document.querySelectorAll('.fmt-btn[data-orient]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.fmt-btn[data-orient]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
 
-    try {
-      await PrintEngine.downloadPNG({
-        title:          $('print-title').value,
-        subtitle:       $('print-subtitle').value,
-        classification: $('print-classification').value,
-        includeGrid:    $('print-include-grid').checked,
-        includeCompass: $('print-include-compass').checked,
-        includeScale:   $('print-include-scale').checked,
-      });
-      toast('PNG exportado com sucesso!', 'success');
-    } catch (err) {
-      console.error(err);
-      toast('Erro ao exportar PNG', 'error');
-    } finally {
-      $('btn-export-png').disabled    = false;
-      $('btn-export-png').textContent = '⬇ Exportar PNG';
-    }
+  // Enquadrar no Mapa → abre a moldura interativa
+  $('btn-frame-map').addEventListener('click', () => {
+    const size        = document.querySelector('.fmt-btn[data-size].active')?.dataset.size    || 'A4';
+    const orientation = document.querySelector('.fmt-btn[data-orient].active')?.dataset.orient || 'landscape';
+    const targetScale = parseInt($('print-target-scale').value) || 25000;
+
+    $('print-overlay').classList.add('hidden');
+    setPanel(false);
+
+    PrintFrame.show(map, {
+      size,
+      orientation,
+      targetScale,
+
+      onCapture: async () => {
+        const captureBtn = document.getElementById('pf-capture');
+        if (captureBtn) {
+          captureBtn.disabled    = true;
+          captureBtn.textContent = '⏳ Gerando…';
+        }
+        toast('Gerando carta…', 'info');
+
+        try {
+          const canvas = await PrintFrame.capture({
+            title:          $('print-title').value,
+            subtitle:       $('print-subtitle').value,
+            classification: $('print-classification').value,
+            includeGrid:    true,
+          });
+
+          const dataUrl = canvas.toDataURL('image/png');
+          PrintFrame.hide();
+          _triggerPrint(dataUrl, size, orientation);
+          toast('Pronto! Escolha "Salvar como PDF" no diálogo.', 'success');
+        } catch (err) {
+          console.error('[PrintFrame] Erro na captura:', err);
+          toast('Erro ao gerar carta', 'error');
+          if (captureBtn) {
+            captureBtn.disabled    = false;
+            captureBtn.textContent = '📄 Capturar';
+          }
+        }
+      },
+    });
   });
 }
+
+// ── Dispara diálogo de impressão com tamanho de papel correto ─
+function _triggerPrint(dataUrl, size, orientation) {
+  // @page dinâmico com o tamanho escolhido
+  const pageSize = size === 'A3'
+    ? (orientation === 'landscape' ? 'A3 landscape' : 'A3 portrait')
+    : (orientation === 'landscape' ? 'A4 landscape' : 'A4 portrait');
+
+  let styleEl = document.getElementById('_print-page-style');
+  if (!styleEl) {
+    styleEl    = document.createElement('style');
+    styleEl.id = '_print-page-style';
+    document.head.appendChild(styleEl);
+  }
+  styleEl.textContent = `
+    @media print {
+      @page { size: ${pageSize}; margin: 0; }
+      body > *:not(#_print-zone) { display: none !important; }
+      #_print-zone { display: block !important; width: 100%; margin: 0; padding: 0; }
+      #_print-zone img { width: 100% !important; height: auto !important; display: block; }
+    }
+  `;
+
+  let zone = document.getElementById('_print-zone');
+  if (!zone) {
+    zone       = document.createElement('div');
+    zone.id    = '_print-zone';
+    zone.style.cssText = 'display:none;position:fixed;inset:0;z-index:9999;background:#fff;';
+    document.body.appendChild(zone);
+  }
+  zone.innerHTML = '';
+
+  const img = new Image();
+  img.src = dataUrl;
+  img.onload = () => {
+    zone.appendChild(img);
+    zone.style.display = 'block';
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => {
+        zone.style.display = 'none';
+        zone.innerHTML     = '';
+      }, 800);
+    }, 80);
+  };
+}
+
 
 // ── Toast ────────────────────────────────────────────────────
 function toast(msg, type = 'info') {
