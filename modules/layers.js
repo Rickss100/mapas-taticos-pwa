@@ -94,17 +94,11 @@
     attribution: 'IBGE BC250',
   };
 
-  // IBGE Curvas de Nível (1:25.000 / 1:1.000.000)
-  const CONTOUR_WMS = {
-    type: 'raster',
-    tiles: [
-      'https://geoservicos.ibge.gov.br/geoserver/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap'
-      + '&SRS=EPSG:4326&TRANSPARENT=TRUE&FORMAT=image/png'
-      + '&LAYERS=CCAR:BC25_Curva_Nivel_L,CCAR:BCIM_Curva_Nivel_L&STYLES=&'
-      + 'BBOX={bbox-epsg-4326}&WIDTH=256&HEIGHT=256',
-    ],
-    tileSize: 256,
-    attribution: 'IBGE — Curvas de Nível',
+  // MapTiler Curvas de Nível (Vetor Global)
+  const CONTOUR_VECTOR = {
+    type: 'vector',
+    url: 'https://api.maptiler.com/tiles/contours/v2/tiles.json?key=inglBezhia6tUQkDWOEd',
+    attribution: '© <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a>'
   };
 
   const LayerManager = {
@@ -172,7 +166,12 @@
 
     setOverlayOpacity(layerId, opacityValue) {
       if (this.isOverlayActive(layerId)) {
-        this._map.setPaintProperty(layerId, 'raster-opacity', opacityValue);
+        const type = this._map.getLayer(layerId).type;
+        if (type === 'raster') {
+          this._map.setPaintProperty(layerId, 'raster-opacity', opacityValue);
+        } else if (type === 'line') {
+          this._map.setPaintProperty(layerId, 'line-opacity', opacityValue);
+        }
       }
     },
 
@@ -196,10 +195,20 @@
 
     _addContour() {
       const map = this._map;
-      if (!map.getSource('contour-src')) map.addSource('contour-src', CONTOUR_WMS);
-      if (!map.getLayer('contour-wms')) {
+      if (!map.getSource('contour-src')) map.addSource('contour-src', CONTOUR_VECTOR);
+      if (!map.getLayer('contour-wms')) { // Mantemos o ID por compatibilidade
         const op = this._lastOpacities?.contour ?? (document.getElementById('opacity-contour') ? parseInt(document.getElementById('opacity-contour').value)/100 : 0.8);
-        map.addLayer({ id: 'contour-wms', type: 'raster', source: 'contour-src', paint: { 'raster-opacity': op } });
+        map.addLayer({ 
+          id: 'contour-wms', 
+          type: 'line', 
+          source: 'contour-src', 
+          'source-layer': 'contour',
+          paint: { 
+            'line-color': '#d97706', // Amber tático
+            'line-width': ['match', ['get', 'nth_line'], 5, 1.4, 0.6], // Linhas mestras mais grossas
+            'line-opacity': op 
+          } 
+        });
       }
     },
 
