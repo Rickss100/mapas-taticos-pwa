@@ -94,13 +94,13 @@
     attribution: 'IBGE BC250',
   };
 
-  // IBGE Curvas de Nível (1:250.000)
+  // IBGE Curvas de Nível (1:25.000 / 1:1.000.000)
   const CONTOUR_WMS = {
     type: 'raster',
     tiles: [
-      'https://geoservicos.ibge.gov.br/geoserver/CCAR/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap'
+      'https://geoservicos.ibge.gov.br/geoserver/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap'
       + '&SRS=EPSG:4326&TRANSPARENT=TRUE&FORMAT=image/png'
-      + '&LAYERS=CCAR:BC250_Curva_Nivel_L&STYLES=&'
+      + '&LAYERS=CCAR:BC25_Curva_Nivel_L,CCAR:BCIM_Curva_Nivel_L&STYLES=&'
       + 'BBOX={bbox-epsg-4326}&WIDTH=256&HEIGHT=256',
     ],
     tileSize: 256,
