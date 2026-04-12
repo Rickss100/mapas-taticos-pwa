@@ -155,28 +155,56 @@
       const paper = this._paper();
       const fw    = this._fw;
       const fh    = this._fh;
-      const mc    = this._map.getCanvas();
       const gc    = document.getElementById('utm-grid-canvas');
-      const DPR   = window.devicePixelRatio || 1;
-
-      // Coordenadas de recorte — mapa (pixels físicos)
-      const mcFX = Math.round((mc.width  - fw * DPR) / 2);
-      const mcFY = Math.round((mc.height - fh * DPR) / 2);
-      const mcFW = Math.round(fw * DPR);
-      const mcFH = Math.round(fh * DPR);
-
-      // Coordenadas de recorte — grade UTM (pixels CSS)
-      const gcFX = gc ? (gc.width  - fw) / 2 : 0;
-      const gcFY = gc ? (gc.height - fh) / 2 : 0;
-
-      // Canvas de saída a 150 DPI
-      const DPI = 150;
+      
+      // Resolução de saída do Documento PDF: 250 DPI garante altíssima qualidade A3 sem explodir a RAM do celular
+      const DPI = 250;
       const PPM = DPI / 25.4;            // pixels por mm
       const OW  = Math.round(paper.w * PPM);
       const OH  = Math.round(paper.h * PPM);
       const MAR = Math.round(6  * PPM);  // margem 6 mm
       const HDR = Math.round(14 * PPM);  // cabeçalho 14 mm
       const FTR = Math.round(48 * PPM);  // rodapé cartográfico 48 mm
+
+      const mX = MAR;
+      const mY = MAR + HDR;
+      const mW = OW - 2 * MAR;
+      const mH = OH - 2 * MAR - HDR - FTR;
+
+      // ─── HIGH-RES HACK: Forçar MapLibre a renderizar em alta densidade ───
+      const originalDPR = window.devicePixelRatio || 1;
+      const targetDPR = Math.min(Math.max(Math.ceil(mW / fw), originalDPR), 4.5); // Limita a ~4.5x para evitar crash de WebGL
+
+      let restored = false;
+      if (targetDPR > originalDPR) {
+        if (window.toast) toast('Processando mapa em Alta Resolução (DPI)... Aguarde um instante.', 'info', 4000);
+        try {
+          Object.defineProperty(window, 'devicePixelRatio', { get: () => targetDPR, configurable: true });
+          this._map.resize();
+          
+          await new Promise(resolve => {
+            let to = setTimeout(resolve, 8000); // max 8 seg esperando tiles carregarem
+            this._map.once('idle', () => { clearTimeout(to); resolve(); });
+          });
+          restored = true;
+        } catch(e) {
+          console.warn('Fallback DPR override failed:', e);
+        }
+      }
+
+      // Agora o canvas do MapLibre está gigante e "crisp"
+      const mc = this._map.getCanvas();
+      const currentDPR = restored ? targetDPR : originalDPR;
+
+      // Coordenadas de recorte — mapa (pixels físicos trubinados)
+      const mcFX = Math.round((mc.width  - fw * currentDPR) / 2);
+      const mcFY = Math.round((mc.height - fh * currentDPR) / 2);
+      const mcFW = Math.round(fw * currentDPR);
+      const mcFH = Math.round(fh * currentDPR);
+
+      // Coordenadas de recorte — grade UTM (pixels CSS, nós não mudamos a grade, apenas aplicaremos redimensionamento suave na imagem)
+      const gcFX = gc ? (gc.width  - fw) / 2 : 0;
+      const gcFY = gc ? (gc.height - fh) / 2 : 0;
 
       const off = document.createElement('canvas');
       off.width  = OW;
@@ -188,11 +216,6 @@
       ctx.fillRect(0, 0, OW, OH);
 
       // ─── Área de mapa ────────────────────────────────────────────
-      const mX = MAR;
-      const mY = MAR + HDR;
-      const mW = OW - 2 * MAR;
-      const mH = OH - 2 * MAR - HDR - FTR;
-
       if (mcFW > 0 && mcFH > 0) {
         ctx.drawImage(mc, mcFX, mcFY, mcFW, mcFH, mX, mY, mW, mH);
       }
@@ -201,13 +224,22 @@
       if (gc && printOpts.includeGrid !== false && fw > 0 && fh > 0) {
         ctx.save();
         ctx.globalAlpha = 0.85;
+        // O drawImage faz upscale com blur das linhas SVG que é ok para 1px stroke
         ctx.drawImage(gc, gcFX, gcFY, fw, fh, mX, mY, mW, mH);
         ctx.restore();
       }
 
+      // ─── Restaurar DPR para evitar mapa gigante na tela ─────────
+      if (restored) {
+        try {
+          Object.defineProperty(window, 'devicePixelRatio', { get: () => originalDPR, configurable: true });
+          this._map.resize();
+        } catch(e) {}
+      }
+
       // ─── Borda cartográfica ──────────────────────────────────────
       ctx.strokeStyle = 'rgba(74,222,128,0.55)';
-      ctx.lineWidth   = 2;
+      ctx.lineWidth   = 2.5;
       ctx.strokeRect(MAR, MAR, OW - 2*MAR, OH - 2*MAR);
 
       // ─── Cabeçalho ───────────────────────────────────────────────
