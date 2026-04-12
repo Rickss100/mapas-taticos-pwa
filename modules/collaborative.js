@@ -56,7 +56,7 @@ window.Collaborative = (function() {
 
   // Gera uma sala aleatória e mostra o QR Code
   function createOperation() {
-    if (!db) return alert("Firebase não configurado! Substitua a chave no código.");
+    if (!db) return alert("Falha na rede: Sistema tático indisponível. Recarregue a página (limpe os dados do app) e tente novamente com conexão 4G/Wi-Fi.");
     
     // Gerar ID de Operação: ex: OP-BRAVO-1A2B
     const randomHex = Math.random().toString(16).substr(2, 4).toUpperCase();

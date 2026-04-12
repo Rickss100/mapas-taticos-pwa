@@ -3,8 +3,8 @@
  * Cache-first para tiles já baixados · Stale-while-revalidate para shell
  */
 
-const CACHE_NAME  = 'cartapro-v10';
-const SHELL_CACHE = 'cartapro-shell-v10';
+const CACHE_NAME  = 'cartapro-v11';
+const SHELL_CACHE = 'cartapro-shell-v11';
 
 const BASE = '/mapas-taticos-pwa';
 
