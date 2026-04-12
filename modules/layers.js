@@ -97,7 +97,7 @@
   // MapTiler Curvas de Nível (Vetor Global)
   const CONTOUR_VECTOR = {
     type: 'vector',
-    url: 'https://api.maptiler.com/tiles/contours/v2/tiles.json?key=inglBezhia6tUQkDWOEd',
+    url: 'https://api.maptiler.com/tiles/contours-v2/tiles.json?key=inglBezhia6tUQkDWOEd',
     attribution: '© <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a>'
   };
 
