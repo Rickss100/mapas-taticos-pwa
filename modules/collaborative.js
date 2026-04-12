@@ -8,12 +8,12 @@ window.Collaborative = (function() {
   // 1. INSIRA AQUI AS CREDENCIAIS REAIS DO SEU FIREBASE
   // ─────────────────────────────────────────────────────────
   const firebaseConfig = {
-    apiKey: "Sua_Chave_API",
-    authDomain: "seu-projeto.firebaseapp.com",
-    projectId: "seu-projeto",
-    storageBucket: "seu-projeto.firebasestorage.app",
-    messagingSenderId: "123456789",
-    appId: "1:123456:web:12abc"
+    apiKey: "AIzaSyAv7ObFc6Fy55KB_xLMWenqrWFv85mnTUc",
+    authDomain: "patrulha-tatica.firebaseapp.com",
+    projectId: "patrulha-tatica",
+    storageBucket: "patrulha-tatica.firebasestorage.app",
+    messagingSenderId: "100511161805",
+    appId: "1:100511161805:web:de3ce62389393359eab884"
   };
 
   // Referências principais
