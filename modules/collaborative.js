@@ -34,16 +34,11 @@ window.Collaborative = (function() {
   const btnJoin      = document.getElementById('btn-confirm-join');
 
   function init() {
-    // Tenta inicializar apenas se a chave não for a dummy
-    if (firebaseConfig.apiKey !== "Sua_Chave_API" && firebaseConfig.apiKey !== "Alza...") {
-      try {
-        firebase.initializeApp(firebaseConfig);
-        db = firebase.firestore();
-      } catch(e) {
-        console.error("Erro ao iniciar Firebase:", e);
-      }
-    } else {
-      console.warn("Credenciais do Firebase não configuradas no collaborative.js");
+    try {
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+    } catch(e) {
+      console.error("Erro ao iniciar Firebase:", e);
     }
 
     bindEvents();
