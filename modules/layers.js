@@ -6,9 +6,12 @@
 ;(function (window) {
   'use strict';
 
+  const GLYPHS_URL = 'https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key=inglBezhia6tUQkDWOEd';
+
   const STYLES = {
     osm: {
       version: 8,
+      glyphs: GLYPHS_URL,
       sources: {
         osm: {
           type: 'raster',
@@ -23,6 +26,7 @@
 
     topo: {
       version: 8,
+      glyphs: GLYPHS_URL,
       sources: {
         topo: {
           type: 'raster',
@@ -37,6 +41,7 @@
 
     satellite: {
       version: 8,
+      glyphs: GLYPHS_URL,
       sources: {
         satellite: {
           type: 'raster',
@@ -53,6 +58,7 @@
 
     dark: {
       version: 8,
+      glyphs: GLYPHS_URL,
       sources: {
         dark: {
           type: 'raster',
@@ -160,8 +166,12 @@
     },
 
     toggleContour(active) {
-      if (active) this._addContour();
-      else        this._removeLayer('contour-wms');
+      if (active) {
+        this._addContour();
+      } else {
+        this._removeLayer('contour-label');
+        this._removeLayer('contour-wms');
+      }
     },
 
     setOverlayOpacity(layerId, opacityValue) {
@@ -171,6 +181,11 @@
           this._map.setPaintProperty(layerId, 'raster-opacity', opacityValue);
         } else if (type === 'line') {
           this._map.setPaintProperty(layerId, 'line-opacity', opacityValue);
+          
+          // Ajusta a opacidade do label também se for o contour
+          if (layerId === 'contour-wms' && this.isOverlayActive('contour-label')) {
+            this._map.setPaintProperty('contour-label', 'text-opacity', opacityValue);
+          }
         }
       }
     },
@@ -196,8 +211,10 @@
     _addContour() {
       const map = this._map;
       if (!map.getSource('contour-src')) map.addSource('contour-src', CONTOUR_VECTOR);
+      
+      const op = this._lastOpacities?.contour ?? (document.getElementById('opacity-contour') ? parseInt(document.getElementById('opacity-contour').value)/100 : 0.8);
+      
       if (!map.getLayer('contour-wms')) { // Mantemos o ID por compatibilidade
-        const op = this._lastOpacities?.contour ?? (document.getElementById('opacity-contour') ? parseInt(document.getElementById('opacity-contour').value)/100 : 0.8);
         map.addLayer({ 
           id: 'contour-wms', 
           type: 'line', 
@@ -208,6 +225,30 @@
             'line-width': ['match', ['get', 'nth_line'], 5, 1.4, 0.6], // Linhas mestras mais grossas
             'line-opacity': op 
           } 
+        });
+      }
+      
+      if (!map.getLayer('contour-label')) {
+        map.addLayer({
+          id: 'contour-label',
+          type: 'symbol',
+          source: 'contour-src',
+          'source-layer': 'contour',
+          filter: ['==', 'nth_line', 5], // Apenas linhas mestras
+          layout: {
+            'symbol-placement': 'line',
+            'text-field': ['concat', ['to-string', ['get', 'elevation']], ' m'],
+            'text-font': ['Roboto Medium'],
+            'text-size': 11,
+            'text-pitch-alignment': 'map',
+            'text-rotation-alignment': 'map'
+          },
+          paint: {
+            'text-color': '#d97706',
+            'text-halo-color': 'rgba(255,255,255,0.7)',
+            'text-halo-width': 1.2,
+            'text-opacity': op
+          }
         });
       }
     },
