@@ -81,8 +81,18 @@ function initMap() {
 
     onMapMove(); // Atualiza info imediatamente
 
+    // Observer garante que o WebGL Canvas não seja achatado
+    new ResizeObserver(() => {
+      if (window.map) window.map.resize();
+    }).observe(document.getElementById('map-container'));
+
     // Revela app, esconde splash
     showApp();
+    
+    // Força re-render após o painel estar visível no DOM
+    setTimeout(() => { 
+      if (window.map) window.map.resize(); 
+    }, 50);
   });
 }
 
