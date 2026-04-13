@@ -121,6 +121,7 @@ function togglePanel() { setPanel(!panelOpen); }
 function setPanel(open) {
   panelOpen = open;
   $('side-panel').classList.toggle('panel-closed', !open);
+  setTimeout(() => { if (window.map) window.map.resize(); }, 150);
 }
 
 // ── Layer Buttons ───────────────────────────────────────────

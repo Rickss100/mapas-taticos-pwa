@@ -490,11 +490,12 @@ html, body {
   flex-shrink: 0;
 }
 
-/* ---------- Map ---------- */
 #map-container {
   position: relative;
   flex: 1;
   overflow: hidden;
+  transform: translateZ(0); /* Hardware isolation to prevent WebGL clipping bugs */
+  will-change: transform;
 }
 #map { width: 100%; height: 100%; }
 
