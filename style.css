@@ -599,8 +599,68 @@ html, body {
 .zoom-btn:hover {
   background: var(--c-surface3);
   color: var(--c-green);
-  border-color: var(--c-green-dim);
-  box-shadow: var(--shadow-glow);
+  border-color: var(--c-green);
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.2);
+}
+
+/* Allies Panel */
+#allies-panel {
+  position: absolute;
+  right: 14px;
+  top: 90px;
+  width: 180px;
+  background: rgba(13, 21, 32, 0.85);
+  border: 1px solid var(--c-border2);
+  border-radius: var(--radius-sm);
+  z-index: 10;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: none; /* hidden until op starts */
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+.allies-header {
+  background: var(--c-surface2);
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--c-amber);
+  border-bottom: 1px solid var(--c-border2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.allies-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.ally-item {
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  color: var(--c-text);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  cursor: pointer;
+  transition: all var(--tr);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ally-item:last-child {
+  border-bottom: none;
+}
+.ally-item:hover {
+  background: rgba(74, 222, 128, 0.1);
+  color: var(--c-green);
+}
+.ally-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #3b82f6;
+  box-shadow: 0 0 5px #3b82f6;
 }
 
 /* MapLibre attribution override */

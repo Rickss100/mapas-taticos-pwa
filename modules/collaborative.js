@@ -21,7 +21,9 @@ window.Collaborative = (function() {
   let currentRoom = null;
   let userName = null;
   let gpsWatchId = null;
-  let alliedMarkers = {}; // Guarda as instâncias dos marcadores dos aliados
+  let myLastPos = null;
+  let alliedMarkers = {}; // Guarda as instâncias dos marcadores do MapLibre
+  let alliesData = {};    // Guarda {lat, lng} para alimentar o painel lateral e calcular Azimute
 
   // Elementos HTML
   const btnCreateOp  = document.getElementById('btn-create-op');
@@ -108,6 +110,10 @@ window.Collaborative = (function() {
     modalJoin.style.display = 'none';
     if (window.toast) toast(`Conectado como ${userName}`, "success");
 
+    // Revela a tabela na UI
+    const alliesPanel = document.getElementById('allies-panel');
+    if (alliesPanel) alliesPanel.style.display = 'flex';
+
     startTracking();
     listenAllies();
   }
@@ -119,8 +125,9 @@ window.Collaborative = (function() {
     gpsWatchId = navigator.geolocation.watchPosition(
       (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
+        myLastPos = { lat: latitude, lng: longitude };
+
         const myDoc = db.collection('operacoes').doc(currentRoom).collection('operadores').doc(userName);
-        
         myDoc.set({
           lat: latitude,
           lng: longitude,
@@ -152,13 +159,14 @@ window.Collaborative = (function() {
   }
 
   function updateAllyMarker(id, lat, lng) {
-    if (!window.map) return; // Se o maplibre ainda n carregou
+    if (!window.map) return; 
 
-    // Se for o próprio usuário, não precisa desenhar marcador de aliado
     if (id === userName) return;
 
+    alliesData[id] = { lat, lng };
+    renderAlliesList();
+
     if (!alliedMarkers[id]) {
-      // Cria elemento HTML customizado pro marcador tático
       const el = document.createElement('div');
       el.className = 'ally-marker';
       el.style.width = '14px';
@@ -185,16 +193,68 @@ window.Collaborative = (function() {
         .setLngLat([lng, lat])
         .addTo(window.map);
     } else {
-      // Apenas atualiza
       alliedMarkers[id].setLngLat([lng, lat]);
     }
   }
 
   function removeAllyMarker(id) {
+    if (alliesData[id]) delete alliesData[id];
+    renderAlliesList();
+
     if (alliedMarkers[id]) {
       alliedMarkers[id].remove();
       delete alliedMarkers[id];
     }
+  }
+
+  function renderAlliesList() {
+    const ul = document.getElementById('allies-list-ul');
+    if (!ul) return;
+    ul.innerHTML = '';
+    
+    Object.keys(alliesData).forEach(id => {
+      const data = alliesData[id];
+      const li = document.createElement('li');
+      li.className = 'ally-item';
+      li.innerHTML = `<span class="ally-dot"></span><span>${id}</span>`;
+      
+      li.onclick = () => {
+        if (window.map) window.map.flyTo({ center: [data.lng, data.lat], zoom: 16 });
+        
+        if (myLastPos) {
+           const dist = calcDistance(myLastPos.lat, myLastPos.lng, data.lat, data.lng);
+           const az   = calcBearing(myLastPos.lat, myLastPos.lng, data.lat, data.lng);
+           const distTxt = dist > 999 ? (dist/1000).toFixed(1) + ' km' : Math.round(dist) + ' m';
+           if (window.toast) toast(`${id}: Dist ${distTxt} · Azimute ${Math.round(az)}°`, 'info', 5000);
+        } else {
+           if (window.toast) toast(`Centralizando ${id} no satélite...`, 'info', 3000);
+        }
+      };
+      
+      ul.appendChild(li);
+    });
+  }
+
+  // Matemática Geoespacial (Haversine e Radianos Esféricos)
+  function calcDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371e3; // Raios da terra em metros
+    const p1 = lat1 * Math.PI/180;
+    const p2 = lat2 * Math.PI/180;
+    const dp = (lat2-lat1) * Math.PI/180;
+    const dl = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(dp/2)*Math.sin(dp/2) + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)*Math.sin(dl/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
+  function calcBearing(lat1, lon1, lat2, lon2) {
+    const p1 = lat1 * Math.PI/180;
+    const p2 = lat2 * Math.PI/180;
+    const dl = (lon2-lon1) * Math.PI/180;
+    const y = Math.sin(dl) * Math.cos(p2);
+    const x = Math.cos(p1)*Math.sin(p2) - Math.sin(p1)*Math.cos(p2)*Math.cos(dl);
+    const rad = Math.atan2(y, x);
+    return (rad * 180 / Math.PI + 360) % 360; // 0-360
   }
 
   // Auto init
