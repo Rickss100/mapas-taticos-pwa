@@ -660,8 +660,42 @@ html, body {
 .ally-dot {
   width: 8px; height: 8px;
   border-radius: 50%;
-  background: #3b82f6;
-  box-shadow: 0 0 5px #3b82f6;
+  background: var(--c-blue);
+  box-shadow: 0 0 8px var(--c-blue);
+}
+
+/* Marcador no Mapa (HTML) */
+.ally-marker {
+  cursor: pointer;
+  z-index: 40;
+}
+.ally-marker-inner {
+  width: 14px;
+  height: 14px;
+  background-color: var(--c-blue);
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(96, 165, 250, 0.8);
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.ally-marker:hover .ally-marker-inner {
+  transform: scale(1.3);
+  box-shadow: 0 0 15px var(--c-blue);
+}
+.ally-marker-label {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  text-shadow: 0 1px 3px #000;
+  white-space: nowrap;
+  background: rgba(13, 21, 32, 0.6);
+  padding: 1px 4px;
+  border-radius: 3px;
+  pointer-events: none;
 }
 
 /* MapLibre attribution override */

@@ -284,15 +284,46 @@
 
       // ─── Rodapé cartográfico ─────────────────────────────────────
       const fY = OH - MAR - FTR;
-      this._drawRichFooter(ctx, MAR, fY, OW - 2*MAR, FTR, PPM, printOpts);
+      
+      // Coordenadas das extremidades (NW, NE, SW, SE)
+      const corners = this._getCornerCoords();
+
+      this._drawRichFooter(ctx, MAR, fY, OW - 2*MAR, FTR, PPM, printOpts, corners);
 
       return off;
+    },
+
+    /**
+     * Calcula as coordenadas geodésicas dos 4 cantos da área do mapa no canvas final
+     */
+    _getCornerCoords() {
+      if (!this._map) return null;
+      
+      const map = this._map;
+      const fw = this._fw;
+      const fh = this._fh;
+
+      // Usamos as extremidades da "moldura" projetadas de volta para lat/lon
+      const center = map.getCenter();
+      const screenCtr = map.project(center);
+      
+      const nw = map.unproject([screenCtr.x - fw/2, screenCtr.y - fh/2]);
+      const ne = map.unproject([screenCtr.x + fw/2, screenCtr.y - fh/2]);
+      const sw = map.unproject([screenCtr.x - fw/2, screenCtr.y + fh/2]);
+      const se = map.unproject([screenCtr.x + fw/2, screenCtr.y + fh/2]);
+
+      return {
+        nw: { lat: nw.lat, lon: nw.lng },
+        ne: { lat: ne.lat, lon: ne.lng },
+        sw: { lat: sw.lat, lon: sw.lng },
+        se: { lat: se.lat, lon: se.lng }
+      };
     },
 
     // ════════════════════════════════════════════════════════════
     // RODAPÉ CARTOGRÁFICO — 3 colunas
     // ════════════════════════════════════════════════════════════
-    _drawRichFooter(ctx, x, y, w, h, PPM, opts) {
+    _drawRichFooter(ctx, x, y, w, h, PPM, opts, corners) {
       const scale  = this._scale();
       const center = this._map.getCenter();
 
@@ -322,7 +353,7 @@
       // Desenha cada coluna
       this._drawScaleBar(ctx, col1X, y, col1W, h, PPM, scale);
       this._drawDeclinationDiagram(ctx, col2X, y, col2W, h, PPM);
-      this._drawTechTable(ctx, col3X, y, col3W, h, PPM, scale, center, opts);
+      this._drawTechTable(ctx, col3X, y, col3W, h, PPM, scale, center, opts, corners);
     },
 
     // ════════════════════════════════════════════════════════════
@@ -611,7 +642,7 @@
     // ════════════════════════════════════════════════════════════
     // COLUNA 3 — Tabela de Informações Técnicas
     // ════════════════════════════════════════════════════════════
-    _drawTechTable(ctx, x, y, w, h, PPM, scale, center, opts) {
+    _drawTechTable(ctx, x, y, w, h, PPM, scale, center, opts, corners) {
       const PAD  = Math.round(4 * PPM);
       const midX = x + w / 2;
 
@@ -642,25 +673,27 @@
       const latDMS = toDMS(center.lat, true);
       const lonDMS = toDMS(center.lng, false);
 
+      // Nome do Operador via Collaborative se disponível
+      const operatorName = (window.Collaborative && window.Collaborative.getUserName && window.Collaborative.getUserName()) || "OPERADOR NÃO IDENTIFICADO";
+
       // ── Seções da tabela ──────────────────────────────────────
       const sections = [
         {
-          header: 'COORDENADAS DO CENTRO',
-          rows: [
-            ['LATITUDE',  latDMS],
-            ['LONGITUDE', lonDMS],
-            ['UTM E',     utmE],
-            ['UTM N',     utmN],
-          ],
+          header: 'EXTREMIDADES (PONTOS DE CONTROLE)',
+          rows: corners ? [
+            ['NW (Noroeste)', `${toDMS(corners.nw.lat, true)} / ${toDMS(corners.nw.lon, false)}`],
+            ['NE (Nordeste)', `${toDMS(corners.ne.lat, true)} / ${toDMS(corners.ne.lon, false)}`],
+            ['SW (Sudoeste)', `${toDMS(corners.sw.lat, true)} / ${toDMS(corners.sw.lon, false)}`],
+            ['SE (Sudeste)',  `${toDMS(corners.se.lat, true)} / ${toDMS(corners.se.lon, false)}`],
+          ] : [['INFO', 'Extremidades indisponíveis']],
         },
         {
-          header: 'REFERÊNCIA GEODÉSICA',
+          header: 'REFERÊNCIA GEODÉSICA E PESSOAL',
           rows: [
-            ['DATUM',     'SIRGAS 2000'],
-            ['PROJEÇÃO',  'UTM'],
-            ['FUSO',      `${utmZone}${hem}`],
-            ['ESCALA',    scaleStr],
-            ['DATA',      date],
+            ['DATUM / PROJ.', 'SIRGAS 2000 / UTM'],
+            ['FUSO / ESCALA', `${utmZone}${hem} / ${scaleStr}`],
+            ['OPERADOR',      operatorName.toUpperCase()],
+            ['DATA / HORA',    new Date().toLocaleString('pt-BR')],
           ],
         },
       ];

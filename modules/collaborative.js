@@ -22,6 +22,7 @@ window.Collaborative = (function() {
   let userName = null;
   let gpsWatchId = null;
   let myLastPos = null;
+  let isTracking = false;
   let alliedMarkers = {}; // Guarda as instâncias dos marcadores do MapLibre
   let alliesData = {};    // Guarda {lat, lng} para alimentar o painel lateral e calcular Azimute
 
@@ -34,6 +35,8 @@ window.Collaborative = (function() {
   const modalJoin    = document.getElementById('modal-join-op');
   const inputName    = document.getElementById('operator-name-input');
   const btnJoin      = document.getElementById('btn-confirm-join');
+  const btnToggleGPS = document.getElementById('btn-toggle-tracking');
+  const gpsControls  = document.getElementById('tracking-controls');
 
   function init() {
     try {
@@ -54,6 +57,9 @@ window.Collaborative = (function() {
     if (btnJoin) {
       btnJoin.addEventListener('click', joinOperation);
     }
+    if (btnToggleGPS) {
+      btnToggleGPS.addEventListener('click', toggleTracking);
+    }
   }
 
   // Gera uma sala aleatória e mostra o QR Code
@@ -71,13 +77,14 @@ window.Collaborative = (function() {
     qrDisplay.innerHTML = ''; // Limpa anterior
     
     // Gera o QR Code com a biblioteca Qrious
+    const qrCanvas = document.createElement('canvas');
     new QRious({
-      element: document.createElement('canvas'),
+      element: qrCanvas,
       value: inviteUrl,
       size: 150,
     });
     // Injeta o canvas criado na div
-    qrDisplay.appendChild(document.querySelector('canvas'));
+    qrDisplay.appendChild(qrCanvas);
     opLinkText.innerText = inviteUrl;
 
     if (window.toast) toast(`Operação ${currentRoom} criada!`, "success");
@@ -110,7 +117,8 @@ window.Collaborative = (function() {
     modalJoin.style.display = 'none';
     if (window.toast) toast(`Conectado como ${userName}`, "success");
 
-    // Revela a tabela na UI
+    // Mostra controles de GPS e painel de aliados
+    if (gpsControls) gpsControls.style.display = 'block';
     const alliesPanel = document.getElementById('allies-panel');
     if (alliesPanel) alliesPanel.style.display = 'flex';
 
@@ -122,22 +130,67 @@ window.Collaborative = (function() {
   function startTracking() {
     if (!navigator.geolocation) return alert("GPS não suportado pelo navegador.");
 
+    isTracking = true;
+    updateTrackingUI();
+
     gpsWatchId = navigator.geolocation.watchPosition(
       (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
         myLastPos = { lat: latitude, lng: longitude };
+
+        if (!isTracking) return;
 
         const myDoc = db.collection('operacoes').doc(currentRoom).collection('operadores').doc(userName);
         myDoc.set({
           lat: latitude,
           lng: longitude,
           acc: accuracy,
+          status: 'online',
           timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
       },
-      (err) => console.error("Erro GPS:", err),
+      (err) => {
+        console.error("Erro GPS:", err);
+        if (window.toast) toast("Erro ao obter posição GPS", "error");
+      },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
+  }
+
+  function stopTracking() {
+    if (gpsWatchId) {
+      navigator.geolocation.clearWatch(gpsWatchId);
+      gpsWatchId = null;
+    }
+    isTracking = false;
+    updateTrackingUI();
+
+    // Notifica outros que estou offline
+    if (db && currentRoom && userName) {
+      const myDoc = db.collection('operacoes').doc(currentRoom).collection('operadores').doc(userName);
+      myDoc.update({ status: 'offline' }).catch(err => console.warn("Erro ao atualizar status offline:", err));
+    }
+
+    if (window.toast) toast("Rastreamento interrompido", "info");
+  }
+
+  function toggleTracking() {
+    if (isTracking) {
+      stopTracking();
+    } else {
+      startTracking();
+    }
+  }
+
+  function updateTrackingUI() {
+    if (!btnToggleGPS) return;
+    if (isTracking) {
+      btnToggleGPS.innerHTML = '📡 Transmitindo Posição';
+      btnToggleGPS.style.background = '#22c55e';
+    } else {
+      btnToggleGPS.innerHTML = '🚫 Oculto (GPS Pausado)';
+      btnToggleGPS.style.background = '#ef4444';
+    }
   }
 
   // Escuta a localização dos aliados
@@ -169,24 +222,14 @@ window.Collaborative = (function() {
     if (!alliedMarkers[id]) {
       const el = document.createElement('div');
       el.className = 'ally-marker';
-      el.style.width = '14px';
-      el.style.height = '14px';
-      el.style.backgroundColor = '#3b82f6';
-      el.style.border = '2px solid white';
-      el.style.borderRadius = '50%';
-      el.style.boxShadow = '0 0 10px rgba(59, 130, 246, 0.8)';
       
+      const inner = document.createElement('div');
+      inner.className = 'ally-marker-inner';
+      el.appendChild(inner);
+
       const label = document.createElement('div');
+      label.className = 'ally-marker-label';
       label.innerText = id;
-      label.style.position = 'absolute';
-      label.style.top = '18px';
-      label.style.left = '50%';
-      label.style.transform = 'translateX(-50%)';
-      label.style.color = '#fff';
-      label.style.fontSize = '10px';
-      label.style.fontWeight = 'bold';
-      label.style.textShadow = '1px 1px 2px #000';
-      label.style.whiteSpace = 'nowrap';
       el.appendChild(label);
 
       alliedMarkers[id] = new maplibregl.Marker({ element: el })
@@ -257,8 +300,12 @@ window.Collaborative = (function() {
     return (rad * 180 / Math.PI + 360) % 360; // 0-360
   }
 
+  function getUserName() {
+    return userName;
+  }
+
   // Auto init
   window.addEventListener('DOMContentLoaded', init);
 
-  return { init };
+  return { init, getUserName };
 })();
