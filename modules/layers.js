@@ -82,22 +82,22 @@
     type: 'raster',
     tiles: [
       'https://www.geoportal.eb.mil.br/teogc/terraogcwms.cgi?SERVICE=WMS&REQUEST=GetMap&VERSION=1.1.1'
-      + '&SRS=EPSG:4326&TRANSPARENT=TRUE&FORMAT=image/png'
-      + '&LAYERS=ctm250&STYLES=&'
-      + 'BBOX={bbox-epsg-4326}&WIDTH=256&HEIGHT=256',
+      + '&SRS=EPSG:4326&TRANSPARENT=TRUE&FORMAT=image/png&BGCOLOR=0x000000'
+      + '&LAYERS=ctm250&STYLES='
+      + '&BBOX={bbox-epsg-4326}&WIDTH=256&HEIGHT=256',
     ],
     tileSize: 256,
     attribution: 'DSG/EB — Carta Topográfica Militar 1:250.000',
   };
 
-  // IBGE Malha Municipal
+  // IBGE Malha Municipal — workspace CGEO (público)
   const IBGE_WMS = {
     type: 'raster',
     tiles: [
-      'https://geoservicos.ibge.gov.br/geoserver/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap'
-      + '&SRS=EPSG:4326&TRANSPARENT=TRUE&FORMAT=image/png'
-      + '&LAYERS=CCAR:BC250_Limite_Municipio_A&STYLES=&'
-      + 'BBOX={bbox-epsg-4326}&WIDTH=256&HEIGHT=256',
+      'https://geoservicos.ibge.gov.br/geoserver/CGEO/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap'
+      + '&SRS=EPSG:4326&TRANSPARENT=TRUE&FORMAT=image/png&BGCOLOR=0x000000'
+      + '&LAYERS=CGEO:BC250_Limite_Municipio_A&STYLES='
+      + '&BBOX={bbox-epsg-4326}&WIDTH=256&HEIGHT=256',
     ],
     tileSize: 256,
     attribution: 'IBGE BC250',

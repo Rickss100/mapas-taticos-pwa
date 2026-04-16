@@ -448,14 +448,15 @@ function _triggerPrint(dataUrl, size, orientation) {
 
 
 // ── Toast ────────────────────────────────────────────────────
-function toast(msg, type = 'info') {
+function toast(msg, type = 'info', duration = 3100) {
   const el = document.createElement('div');
   el.className = `toast ${type}`;
   const icons = { success: '✅', error: '❌', info: 'ℹ️' };
   el.innerHTML = `<span>${icons[type] || ''}</span><span>${msg}</span>`;
   $('toast-container').appendChild(el);
-  setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; el.style.transition = '0.3s'; }, 2800);
-  setTimeout(() => el.remove(), 3100);
+  const fadeAt = Math.max(duration - 300, 200);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; el.style.transition = '0.3s'; }, fadeAt);
+  setTimeout(() => el.remove(), duration);
 }
 
 // ── Service Worker ───────────────────────────────────────────
