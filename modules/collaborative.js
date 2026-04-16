@@ -193,28 +193,22 @@ window.Collaborative = (function() {
     }
   }
 
-  // Escuta a localização dos aliados
-  // Usa snapshot completo para que quem entra mais tarde veja todos os
-  // operadores já presentes na sala, não apenas as mudanças futuras.
+  // Escuta a localização dos aliados.
+  // Usa snapshot completo: quem entra mais tarde vê todos já presentes.
   function listenAllies() {
     db.collection('operacoes').doc(currentRoom).collection('operadores')
       .onSnapshot((snapshot) => {
-        // Coleta IDs ativos neste snapshot
         const activeIds = new Set();
 
         snapshot.forEach((doc) => {
-          const data = doc.data();
           activeIds.add(doc.id);
-          if (data.lat !== undefined && data.lng !== undefined) {
-            updateAllyMarker(doc.id, data.lat, data.lng, data.status);
-          }
+          // Registra TODOS, mesmo sem GPS ainda
+          processAllyUpdate(doc.id, doc.data());
         });
 
-        // Remove marcadores de quem saiu (não está mais no snapshot)
-        Object.keys(alliedMarkers).forEach(id => {
-          if (!activeIds.has(id)) removeAllyMarker(id);
-        });
-        Object.keys(alliesData).forEach(id => {
+        // Remove quem saiu da coleção
+        const allTracked = new Set([...Object.keys(alliedMarkers), ...Object.keys(alliesData)]);
+        allTracked.forEach(id => {
           if (!activeIds.has(id)) removeAllyMarker(id);
         });
       }, (err) => {
@@ -223,21 +217,29 @@ window.Collaborative = (function() {
       });
   }
 
-  function updateAllyMarker(id, lat, lng, status) {
-    if (!window.map) return;
-    if (!id || lat === undefined || lng === undefined) return;
-
-    // Sempre salva dados (inclusive o próprio operador para referência de posição)
-    if (id === userName) {
-      myLastPos = { lat, lng }; // Atualiza posição local via Firestore como backup
+  // Processa atualização de um doc do Firestore:
+  // sempre registra no painel; move marcador só se tiver coordenadas.
+  function processAllyUpdate(id, data) {
+    if (id === userName && data.lat !== undefined) {
+      myLastPos = { lat: data.lat, lng: data.lng };
     }
 
-    alliesData[id] = { lat, lng, status };
+    alliesData[id] = {
+      lat:    data.lat,
+      lng:    data.lng,
+      status: data.status || 'online',
+    };
+
+    if (id !== userName && data.lat !== undefined && data.lng !== undefined) {
+      _updateMarker(id, data.lat, data.lng, data.status);
+    }
+
     renderAlliesList();
+  }
 
-    // Marcadores no mapa apenas para outros (não si mesmo)
-    if (id === userName) return;
-
+  // Cria ou atualiza o marcador HTML de aliado no mapa.
+  function _updateMarker(id, lat, lng, status) {
+    if (!window.map) return;
     const isOffline = status === 'offline';
 
     if (!alliedMarkers[id]) {
@@ -261,7 +263,6 @@ window.Collaborative = (function() {
         .addTo(window.map);
     } else {
       alliedMarkers[id].setLngLat([lng, lat]);
-      // Atualiza visual offline/online
       const markerEl = alliedMarkers[id].getElement();
       const innerEl  = markerEl.querySelector('.ally-marker-inner');
       const labelEl  = markerEl.querySelector('.ally-marker-label');
@@ -269,6 +270,11 @@ window.Collaborative = (function() {
       if (innerEl) innerEl.style.backgroundColor = isOffline ? '#94a3b8' : '';
       if (labelEl) labelEl.innerText = isOffline ? `${id} (offline)` : id;
     }
+  }
+
+  // Função pública: API anterior mantida por compatibilidade
+  function updateAllyMarker(id, lat, lng, status) {
+    processAllyUpdate(id, { lat, lng, status });
   }
 
   function removeAllyMarker(id) {
@@ -319,8 +325,11 @@ window.Collaborative = (function() {
     }
 
     others.forEach(id => {
-      const data = alliesData[id];
-      const isOffline = data.status === 'offline';
+      // *** BUG FIX: Lê alliesData[id] DIRETAMENTE no onclick
+      // (não capturar `data` na closure, pois o objeto é substituido a cada update)
+      const snapshot = alliesData[id];
+      const isOffline = snapshot.status === 'offline';
+      const hasCoords = snapshot.lat !== undefined && snapshot.lng !== undefined;
 
       const li = document.createElement('li');
       li.className = 'ally-item';
@@ -328,34 +337,51 @@ window.Collaborative = (function() {
 
       // Botão de remover (X)
       const removeBtn = document.createElement('button');
+      removeBtn.className = 'ally-remove-btn';
       removeBtn.title = 'Remover da lista';
-      removeBtn.style.cssText = 'background:none;border:none;color:#f87171;cursor:pointer;font-size:0.85rem;padding:0 4px;margin-left:auto;flex-shrink:0';
+      removeBtn.style.cssText = 'background:none;border:none;color:#f87171;cursor:pointer;font-size:0.9rem;padding:0 6px;margin-left:auto;flex-shrink:0;line-height:1';
       removeBtn.innerHTML = '&times;';
       removeBtn.onclick = (e) => {
         e.stopPropagation();
         removeAllyMarker(id);
-        // Apaga do Firestore também (só criador da operação deveria, mas permitimos aqui por praticidade)
         if (db && currentRoom) {
           db.collection('operacoes').doc(currentRoom).collection('operadores').doc(id)
-            .delete().catch(e => console.warn('Erro ao remover operador:', e));
+            .delete().catch(err => console.warn('Erro ao remover operador:', err));
         }
         if (window.toast) toast(`Operador ${id} removido`, 'info');
       };
 
-      li.innerHTML = `<span class="ally-dot" style="${isOffline ? 'background:#64748b;box-shadow:none' : ''}"></span><span>${id}${isOffline ? ' <em style="color:#64748b;font-size:0.68rem">(offline)</em>' : ''}</span>`;
+      const dot = `<span class="ally-dot" style="${isOffline ? 'background:#64748b;box-shadow:none' : ''}"` +
+                  `${!hasCoords ? ';opacity:0.4' : ''}"></span>`;
+      const lbl = `<span>${id}${isOffline ? ' <em style="color:#64748b;font-size:0.68rem">(offline)</em>' : ''}` +
+                  `${!hasCoords ? ' <em style="color:#475569;font-size:0.65rem">(sem GPS)</em>' : ''}</span>`;
+      li.innerHTML = dot + lbl;
       li.appendChild(removeBtn);
 
       li.onclick = (e) => {
-        if (e.target === removeBtn) return; // Não dispara clique ao remover
-        if (window.map) window.map.flyTo({ center: [data.lng, data.lat], zoom: 16 });
+        // Ignora clique no botão de remover (ou em seus filhos)
+        if (e.target.closest('.ally-remove-btn')) return;
 
+        // Lê dados FRESCOS do alliesData no momento do clique
+        const fresh = alliesData[id];
+        if (!fresh || fresh.lat === undefined) {
+          if (window.toast) toast(`${id} ainda não tem posição GPS`, 'info', 3000);
+          return;
+        }
+
+        // Centraliza no mapa
+        if (window.map) {
+          window.map.flyTo({ center: [fresh.lng, fresh.lat], zoom: 16, speed: 1.6 });
+        }
+
+        // Calcula distância e azimute
         if (myLastPos) {
-          const dist    = calcDistance(myLastPos.lat, myLastPos.lng, data.lat, data.lng);
-          const az      = calcBearing(myLastPos.lat, myLastPos.lng, data.lat, data.lng);
-          const distTxt = dist > 999 ? (dist/1000).toFixed(1) + ' km' : Math.round(dist) + ' m';
-          if (window.toast) toast(`🚩 ${id} | Dist: ${distTxt} | Az: ${Math.round(az)}°`, 'info', 6000);
+          const dist    = calcDistance(myLastPos.lat, myLastPos.lng, fresh.lat, fresh.lng);
+          const az      = calcBearing(myLastPos.lat, myLastPos.lng, fresh.lat, fresh.lng);
+          const distTxt = dist > 999 ? (dist / 1000).toFixed(1) + ' km' : Math.round(dist) + ' m';
+          if (window.toast) toast(`🚩 ${id} | ${distTxt} | Az ${Math.round(az)}°`, 'info', 6000);
         } else {
-          if (window.toast) toast('Ative seu GPS para calcular distância e azimute', 'info', 4000);
+          if (window.toast) toast('Ative seu GPS para calcular azimute', 'info', 3000);
         }
       };
 
