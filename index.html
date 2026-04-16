@@ -286,6 +286,20 @@
         <button id="btn-zoom-in" class="zoom-btn" aria-label="Mais zoom">+</button>
         <button id="btn-zoom-out" class="zoom-btn" aria-label="Menos zoom">−</button>
       </div>
+
+      <!-- Botão flutuante: Marcar Ponto Tático -->
+      <button id="btn-mark-point" title="Marcar ponto tático para todos"
+        style="display:none; position:absolute; bottom:100px; right:14px; z-index:50;
+               width:44px; height:44px; border-radius:50%; border:none;
+               background:#1e293b; border:1px solid rgba(74,222,128,0.35);
+               color:#4ade80; font-size:1.2rem; cursor:pointer; align-items:center;
+               justify-content:center; box-shadow:0 2px 12px rgba(0,0,0,0.5);
+               transition:transform 0.15s, box-shadow 0.15s;"
+        onmouseover="this.style.transform='scale(1.1)';this.style.boxShadow='0 4px 20px rgba(74,222,128,0.35)'"
+        onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 2px 12px rgba(0,0,0,0.5)'"
+        aria-label="Marcar ponto tático">
+        📍
+      </button>
     </main>
 
     <!-- Allies Panel (Injected dynamically when tracking) -->
@@ -356,14 +370,32 @@
     <div id="toast-container"></div>
 
     <!-- Modal: Entrar na Operação -->
-    <div id="modal-join-op" class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); display:none; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(5px);">
-      <div class="modal-content" style="background: #1e293b; padding: 1.5rem; border-radius: 8px; max-width: 90%; width: 350px; text-align: center; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.8);">
-        <h2 style="color: #f8fafc; font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem;">Operação Conjunta</h2>
-        <p style="color: #94a3b8; font-size: 0.875rem; margin-bottom: 1rem; line-height: 1.4;">Você foi convidado para ingressar em uma patrulha ao vivo. Defina seu identificador tático.</p>
-        <input type="text" id="operator-name-input" placeholder="Ex: SGT Silva / VTR 4344" style="width: 100%; padding: 0.75rem; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: white; margin-bottom: 1rem;" />
-        <button id="btn-confirm-join" class="btn-primary" style="width: 100%; background: #22c55e;">Entrar na Patrulha 🚁</button>
+  <div id="modal-join-op" class="modal-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display:none; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(6px);">
+    <div class="modal-content" style="background: #1e293b; padding: 1.5rem; border-radius: 12px; max-width: 90%; width: 360px; text-align: center; border: 1px solid rgba(74,222,128,0.25); box-shadow: 0 10px 40px rgba(0,0,0,0.9);">
+      <h2 style="color: #f8fafc; font-size: 1.15rem; font-weight: 700; margin-bottom: 0.75rem;">🛡️ Operação Conjunta</h2>
+      <p style="color: #94a3b8; font-size: 0.82rem; margin-bottom: 1rem; line-height: 1.5;">Escolha seu identificador e tipo de unidade.</p>
+
+      <!-- Identificador -->
+      <input type="text" id="operator-name-input" placeholder="Ex: SGT Silva / VTR 4344"
+        style="width: 100%; box-sizing:border-box; padding: 0.7rem; border-radius: 6px;
+               border: 1px solid #475569; background: #0f172a; color: white; margin-bottom: 1rem;
+               font-size:0.9rem; outline:none;" />
+
+      <!-- Seletor de Ícone -->
+      <p style="color:#64748b;font-size:0.75rem;margin-bottom:0.5rem;text-align:left;">Tipo de Unidade:</p>
+      <div class="icon-sel-grid">
+        <button class="icon-sel-btn active" data-icon="police"  title="Policial">👮<br><span>Policial</span></button>
+        <button class="icon-sel-btn"        data-icon="vehicle" title="Viatura" >🚔<br><span>Viatura</span></button>
+        <button class="icon-sel-btn"        data-icon="k9"      title="Cão K9"  >🐕<br><span>Cão K9</span></button>
+        <button class="icon-sel-btn"        data-icon="medic"   title="Médico"  >⛑️<br><span>Médico</span></button>
+        <button class="icon-sel-btn"        data-icon="command" title="Comando" >⭐<br><span>Comando</span></button>
       </div>
+
+      <button id="btn-confirm-join" class="btn-primary" style="width: 100%; margin-top:1rem; background: #22c55e; font-size:0.95rem;">
+        Entrar na Patrulha 🛰️
+      </button>
     </div>
+  </div>
 
   </div><!-- /#app -->
 
@@ -371,12 +403,23 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore-compat.js"></script>
+  <script src="modules/markers.js"></script>
+  <script src="modules/trails.js"></script>
   <script src="modules/collaborative.js"></script>
   <script src="modules/grid.js"></script>
   <script src="modules/compass.js"></script>
   <script src="modules/layers.js"></script>
   <script src="modules/print.js"></script>
   <script src="modules/printframe.js"></script>
+  <!-- Inicializa icon selector no modal -->
+  <script>
+    document.querySelectorAll('.icon-sel-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.icon-sel-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+  </script>
   <script src="app.js"></script>
 </body>
 </html>

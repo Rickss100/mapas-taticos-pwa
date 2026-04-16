@@ -706,6 +706,140 @@ html, body {
 }
 .maplibregl-ctrl-attrib a { color: var(--c-blue) !important; }
 
+
+/* ══════════════════════════════════════════════════════════
+   SELETOR DE ICONE (Modal de Entrada)
+   ══════════════════════════════════════════════════════════ */
+.icon-sel-grid { display: flex; gap: 6px; margin-bottom: 4px; }
+.icon-sel-btn {
+  flex: 1; padding: 8px 4px; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(74,222,128,0.15); border-radius: 8px;
+  cursor: pointer; color: #94a3b8; font-size: 1.15rem; line-height: 1.4; transition: all 0.18s;
+}
+.icon-sel-btn span { display: block; font-size: 0.6rem; font-weight: 600; margin-top: 2px; color: #64748b; }
+.icon-sel-btn:hover { background: rgba(74,222,128,0.08); border-color: rgba(74,222,128,0.35); color: #e2e8f0; }
+.icon-sel-btn.active { background: rgba(74,222,128,0.14); border-color: var(--c-green); color: #e2e8f0; box-shadow: 0 0 10px rgba(74,222,128,0.2); }
+.icon-sel-btn.active span { color: var(--c-green); }
+
+/* ══════════════════════════════════════════════════════ PAINEL ALIADOS ══════════ */
+.ally-icon-badge {
+  display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 50%; font-size: 0.9rem; flex-shrink: 0;
+  border: 2px solid rgba(255,255,255,0.15); box-shadow: 0 0 8px rgba(0,0,0,0.4);
+}
+.ally-name { flex: 1; font-size: 0.82rem; font-weight: 600; color: var(--c-text); }
+.ally-tag  { font-style: normal; font-size: 0.65rem; font-weight: 400; color: #64748b; margin-left: 4px; }
+.ally-offline { color: #f87171 !important; }
+.ally-self  { border-left: 3px solid var(--c-green); background: rgba(74,222,128,0.05); }
+.ally-empty { color: #475569; font-size: 0.72rem; justify-content: center; pointer-events: none; padding: 8px 0; }
+.ally-leave { justify-content: center; border-top: 1px solid rgba(74,222,128,0.12); margin-top: 6px; padding-top: 6px; }
+.ally-leave-btn {
+  background: none; border: 1px solid #f87171; color: #f87171; border-radius: 6px;
+  padding: 5px 14px; cursor: pointer; font-size: 0.75rem; width: 100%; transition: background 0.15s;
+}
+.ally-leave-btn:hover { background: rgba(248,113,113,0.12); }
+.ally-remove-btn {
+  background: none; border: none; color: #f87171; cursor: pointer; font-size: 0.9rem;
+  padding: 0 5px; flex-shrink: 0; line-height: 1; opacity: 0.6; transition: opacity 0.15s;
+}
+.ally-remove-btn:hover { opacity: 1; }
+.ally-trail-btn {
+  background: none; border: 1px solid rgba(74,222,128,0.2); border-radius: 5px;
+  cursor: pointer; font-size: 0.8rem; padding: 2px 5px; flex-shrink: 0; color: #64748b; transition: all 0.15s;
+}
+.ally-trail-btn:hover  { border-color: var(--c-green); color: var(--c-green); }
+.ally-trail-btn.active { background: rgba(74,222,128,0.15); border-color: var(--c-green); color: var(--c-green); }
+
+/* ══════════════════════════════════════════════════ MARCADORES MAPA ══════════ */
+.ally-marker { cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ally-marker-frame {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--ak-color, #3b82f6); border: 2.5px solid white;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.5); display: flex; align-items: center;
+  justify-content: center; font-size: 1rem; transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1);
+}
+.ally-marker:hover .ally-marker-frame { transform: scale(1.2); }
+.ally-marker-icon  { line-height: 1; user-select: none; }
+.ally-marker-label {
+  background: rgba(13,21,32,0.78); color: #f8fafc; font-size: 9px; font-weight: 700;
+  padding: 1px 5px; border-radius: 3px; white-space: nowrap; pointer-events: none;
+  text-align: center; max-width: 80px; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ══════════════════════════════════════════════════ SHARED MARKERS ══════════ */
+.shared-marker { cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; transition: transform 0.15s; }
+.shared-marker:hover { transform: scale(1.1); }
+.sm-pin {
+  width: 32px; height: 32px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+  background: var(--sm-color, #3b82f6); border: 2.5px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+}
+.sm-icon { transform: rotate(45deg); font-size: 14px; line-height: 1; display: block; }
+.sm-label {
+  background: rgba(13,21,32,0.8); color: #f8fafc; font-size: 9px; font-weight: 600;
+  padding: 1px 5px; border-radius: 3px; white-space: nowrap; max-width: 90px;
+  overflow: hidden; text-overflow: ellipsis; pointer-events: none;
+}
+.sm-popup {
+  position: absolute; background: #1e293b; border: 1px solid rgba(74,222,128,0.25);
+  border-radius: 10px; padding: 10px 14px; z-index: 100; min-width: 170px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.6); pointer-events: all;
+}
+.sm-popup-type  { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; }
+.sm-popup-label { color: #e2e8f0; font-size: 0.85rem; margin: 4px 0; }
+.sm-popup-meta  { color: #64748b; font-size: 0.7rem; margin-top: 3px; }
+.sm-popup-del {
+  margin-top: 8px; width: 100%; padding: 5px 0; background: none;
+  border: 1px solid #f87171; border-radius: 5px; color: #f87171;
+  cursor: pointer; font-size: 0.75rem; transition: background 0.15s;
+}
+.sm-popup-del:hover { background: rgba(248,113,113,0.12); }
+
+/* ══════════════════════════════════════════════════ MARKER DIALOG ══════════ */
+.tac-modal {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  background: #1e293b; border: 1px solid rgba(74,222,128,0.3); border-radius: 14px;
+  padding: 20px; z-index: 500; min-width: 280px; max-width: 90vw;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7); animation: modal-in 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes modal-in { from { opacity: 0; transform: translate(-50%,-50%) scale(0.92); } }
+.tac-modal-title { color: #e2e8f0; font-size: 0.95rem; font-weight: 700; margin: 0 0 14px; }
+.mtype-grid { display: flex; gap: 6px; margin-bottom: 14px; }
+.mtype-btn {
+  flex: 1; padding: 10px 6px; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(74,222,128,0.15); border-radius: 8px;
+  cursor: pointer; color: #94a3b8; text-align: center; font-size: 1.1rem; transition: all 0.15s;
+}
+.mtype-label { display: block; font-size: 0.65rem; color: #64748b; margin-top: 3px; }
+.mtype-emoji { display: block; }
+.mtype-btn:hover, .mtype-btn.active { background: rgba(74,222,128,0.1); border-color: rgba(74,222,128,0.5); color: #e2e8f0; }
+.tac-input {
+  width: 100%; box-sizing: border-box; padding: 9px 12px; background: #0d1520;
+  border: 1px solid rgba(74,222,128,0.2); border-radius: 7px; color: #e2e8f0;
+  font-size: 0.85rem; margin-bottom: 14px; outline: none; transition: border-color 0.15s;
+}
+.tac-input:focus { border-color: var(--c-green); }
+.tac-modal-actions { display: flex; gap: 8px; }
+.tac-btn-cancel, .tac-btn-confirm { flex: 1; padding: 9px 0; border-radius: 7px; cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.15s; }
+.tac-btn-cancel  { background: none; border: 1px solid #475569; color: #94a3b8; }
+.tac-btn-cancel:hover { background: rgba(255,255,255,0.05); }
+.tac-btn-confirm { background: var(--c-green); border: none; color: #0d1520; }
+.tac-btn-confirm:hover { filter: brightness(1.1); }
+
+/* ══════════════════════════════════════════════════ TRAIL PICKER ══════════ */
+.trail-picker {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  background: #1e293b; border: 1px solid rgba(74,222,128,0.28); border-radius: 12px;
+  padding: 16px 20px; z-index: 500; min-width: 240px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.7); animation: modal-in 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}
+.trail-picker-title { color: #94a3b8; font-size: 0.8rem; margin-bottom: 12px; text-align: center; }
+.trail-picker-title strong { color: #e2e8f0; }
+.trail-picker-colors { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 12px; }
+.tpc-swatch { width: 30px; height: 30px; border-radius: 50%; border: 2.5px solid rgba(255,255,255,0.2); cursor: pointer; transition: transform 0.15s, border-color 0.15s; }
+.tpc-swatch:hover { transform: scale(1.2); border-color: white; }
+.tpc-cancel { width: 100%; padding: 7px 0; background: none; border: 1px solid #475569; border-radius: 6px; color: #64748b; cursor: pointer; font-size: 0.78rem; }
+
 /* ---------- Print Modal ---------- */
 #print-overlay {
   position: fixed;

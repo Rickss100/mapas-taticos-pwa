@@ -3,8 +3,8 @@
  * Cache-first para tiles já baixados · Stale-while-revalidate para shell
  */
 
-const CACHE_NAME  = 'cartapro-v15';
-const SHELL_CACHE = 'cartapro-shell-v15';
+const CACHE_NAME  = 'cartapro-v16';
+const SHELL_CACHE = 'cartapro-shell-v16';
 
 const BASE = '/mapas-taticos-pwa';
 
@@ -19,6 +19,8 @@ const SHELL_ASSETS = [
   `${BASE}/modules/layers.js`,
   `${BASE}/modules/print.js`,
   `${BASE}/modules/printframe.js`,
+  `${BASE}/modules/markers.js`,
+  `${BASE}/modules/trails.js`,
   `${BASE}/modules/collaborative.js`,
   `${BASE}/assets/icons/icon-192.png`,
   `${BASE}/assets/icons/icon-512.png`,

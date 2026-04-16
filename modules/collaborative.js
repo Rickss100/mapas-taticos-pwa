@@ -1,11 +1,11 @@
 /**
- * collaborative.js
- * Módulo de Rastreamento Tático em Tempo Real (Patrulha)
+ * collaborative.js — BrasilCartaPro
+ * Rastreamento Tático em Tempo Real: ícones de operador, marcadores compartilhados, trilhas.
  */
 
 window.Collaborative = (function() {
   // ─────────────────────────────────────────────────────────
-  // 1. INSIRA AQUI AS CREDENCIAIS REAIS DO SEU FIREBASE
+  // Firebase config
   // ─────────────────────────────────────────────────────────
   const firebaseConfig = {
     apiKey: "AIzaSyAv7ObFc6Fy55KB_xLMWenqrWFv85mnTUc",
@@ -16,28 +16,44 @@ window.Collaborative = (function() {
     appId: "1:100511161805:web:de3ce62389393359eab884"
   };
 
-  // Referências principais
-  let db = null;
-  let currentRoom = null;
-  let userName = null;
-  let gpsWatchId = null;
-  let myLastPos = null;
-  let isTracking = false;
-  let alliedMarkers = {}; // Guarda as instâncias dos marcadores do MapLibre
-  let alliesData = {};    // Guarda {lat, lng} para alimentar o painel lateral e calcular Azimute
+  // ─────────────────────────────────────────────────────────
+  // Ícones de operador
+  // ─────────────────────────────────────────────────────────
+  const OPERATOR_ICONS = {
+    police:  { emoji: '👮', color: '#3b82f6', label: 'Policial'  },
+    vehicle: { emoji: '🚔', color: '#6366f1', label: 'Viatura'   },
+    k9:      { emoji: '🐕', color: '#f97316', label: 'Cão K9'    },
+    medic:   { emoji: '⛑️',  color: '#22c55e', label: 'Médico'    },
+    command: { emoji: '⭐', color: '#fbbf24', label: 'Comando'   },
+  };
 
-  // Elementos HTML
+  // ─────────────────────────────────────────────────────────
+  // Estado
+  // ─────────────────────────────────────────────────────────
+  let db          = null;
+  let currentRoom = null;
+  let userName    = null;
+  let myIcon      = 'police'; // ícone selecionado pelo próprio operador
+  let gpsWatchId  = null;
+  let myLastPos   = null;
+  let isTracking  = false;
+  let alliedMarkers = {}; // id -> MaplibreMarker
+  let alliesData    = {}; // id -> { lat, lng, status, icon }
+
+  // Elementos HTML (cacheados no carregamento)
   const btnCreateOp  = document.getElementById('btn-create-op');
   const qrContainer  = document.getElementById('op-qr-container');
   const qrDisplay    = document.getElementById('qrcode-display');
   const opLinkText   = document.getElementById('op-link-text');
-  
   const modalJoin    = document.getElementById('modal-join-op');
   const inputName    = document.getElementById('operator-name-input');
   const btnJoin      = document.getElementById('btn-confirm-join');
   const btnToggleGPS = document.getElementById('btn-toggle-tracking');
   const gpsControls  = document.getElementById('tracking-controls');
 
+  // ─────────────────────────────────────────────────────────
+  // Init
+  // ─────────────────────────────────────────────────────────
   function init() {
     try {
       firebase.initializeApp(firebaseConfig);
@@ -45,109 +61,111 @@ window.Collaborative = (function() {
     } catch(e) {
       console.error("Erro ao iniciar Firebase:", e);
     }
-
     bindEvents();
     checkInvite();
   }
 
   function bindEvents() {
-    if (btnCreateOp) {
-      btnCreateOp.addEventListener('click', createOperation);
-    }
-    if (btnJoin) {
-      btnJoin.addEventListener('click', joinOperation);
-    }
-    if (btnToggleGPS) {
-      btnToggleGPS.addEventListener('click', toggleTracking);
+    if (btnCreateOp)  btnCreateOp.addEventListener('click', createOperation);
+    if (btnJoin)      btnJoin.addEventListener('click', joinOperation);
+    if (btnToggleGPS) btnToggleGPS.addEventListener('click', toggleTracking);
+
+    // Botão de marcar ponto flutuante
+    const btnMark = document.getElementById('btn-mark-point');
+    if (btnMark) {
+      btnMark.addEventListener('click', () => {
+        if (!currentRoom) {
+          if (window.toast) toast('Entre em uma operação para marcar pontos', 'info', 3000);
+          return;
+        }
+        if (window.SharedMarkers) window.SharedMarkers.enableAddMode();
+      });
     }
   }
 
-  // Gera uma sala aleatória e mostra o QR Code
+  // ─────────────────────────────────────────────────────────
+  // Criação e Entrada na Operação
+  // ─────────────────────────────────────────────────────────
   function createOperation() {
-    if (!db) return alert("Falha na rede: Sistema tático indisponível. Recarregue a página (limpe os dados do app) e tente novamente com conexão 4G/Wi-Fi.");
-    
-    // Gerar ID de Operação: ex: OP-BRAVO-1A2B
+    if (!db) return alert("Falha na rede: Sistema tático indisponível.");
     const randomHex = Math.random().toString(16).substr(2, 4).toUpperCase();
     currentRoom = "OP-TANGO-" + randomHex;
-    
     const inviteUrl = window.location.origin + window.location.pathname + "?op=" + currentRoom;
-    
-    // Mostra a UI do QR Code
     qrContainer.style.display = 'block';
-    qrDisplay.innerHTML = ''; // Limpa anterior
-    
-    // Gera o QR Code com a biblioteca Qrious
+    qrDisplay.innerHTML = '';
     const qrCanvas = document.createElement('canvas');
-    new QRious({
-      element: qrCanvas,
-      value: inviteUrl,
-      size: 150,
-    });
-    // Injeta o canvas criado na div
+    new QRious({ element: qrCanvas, value: inviteUrl, size: 150 });
     qrDisplay.appendChild(qrCanvas);
     opLinkText.innerText = inviteUrl;
-
     if (window.toast) toast(`Operação ${currentRoom} criada!`, "success");
-
-    // Já que ele criou, sugere ele entrar também
     modalJoin.style.display = 'flex';
   }
 
-  // Verifica se o usuário abriu um link com "?op=..."
   function checkInvite() {
     const urlParams = new URLSearchParams(window.location.search);
     const op = urlParams.get('op');
-    
     if (op) {
       currentRoom = op;
       modalJoin.style.display = 'flex';
-      
-      // Limpa URL pra não poluir
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }
 
-  // Quando o usuário clica em "Entrar na Patrulha"
   function joinOperation() {
     const nome = inputName.value.trim();
     if (!nome) return alert("Por favor, informe seu identificador tático.");
     if (!db) return alert("Firebase não configurado!");
 
+    // Lê ícone selecionado no modal
+    const selectedIconBtn = document.querySelector('.icon-sel-btn.active');
+    if (selectedIconBtn) myIcon = selectedIconBtn.dataset.icon;
+
     userName = nome;
     modalJoin.style.display = 'none';
-    if (window.toast) toast(`Conectado como ${userName}`, "success");
+    if (window.toast) toast(`Conectado como ${userName} ${OPERATOR_ICONS[myIcon].emoji}`, "success");
 
-    // Mostra controles de GPS e painel de aliados
     if (gpsControls) gpsControls.style.display = 'block';
     const alliesPanel = document.getElementById('allies-panel');
     if (alliesPanel) alliesPanel.style.display = 'flex';
+
+    // Botão de marcar ponto
+    const btnMark = document.getElementById('btn-mark-point');
+    if (btnMark) btnMark.style.display = 'flex';
+
+    // Inicializa módulos auxiliares
+    if (window.SharedMarkers && window.map) {
+      window.SharedMarkers.init(window.map, db);
+      window.SharedMarkers.setRoom(currentRoom, userName);
+      window.SharedMarkers.startListening();
+    }
+    if (window.TrailManager && window.map) {
+      window.TrailManager.init(window.map);
+    }
 
     startTracking();
     listenAllies();
   }
 
-  // Transmite a própria localização
+  // ─────────────────────────────────────────────────────────
+  // Rastreamento GPS
+  // ─────────────────────────────────────────────────────────
   function startTracking() {
     if (!navigator.geolocation) return alert("GPS não suportado pelo navegador.");
-
     isTracking = true;
     updateTrackingUI();
 
     gpsWatchId = navigator.geolocation.watchPosition(
       (pos) => {
-        const { latitude, longitude, accuracy } = pos.coords;
-        myLastPos = { lat: latitude, lng: longitude };
-
+        const { latitude: lat, longitude: lng, accuracy: acc } = pos.coords;
+        myLastPos = { lat, lng };
         if (!isTracking) return;
-
-        const myDoc = db.collection('operacoes').doc(currentRoom).collection('operadores').doc(userName);
-        myDoc.set({
-          lat: latitude,
-          lng: longitude,
-          acc: accuracy,
-          status: 'online',
-          timestamp: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        db.collection('operacoes').doc(currentRoom).collection('operadores').doc(userName)
+          .set({
+            lat, lng, acc,
+            icon: myIcon,
+            status: 'online',
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          });
       },
       (err) => {
         console.error("Erro GPS:", err);
@@ -164,22 +182,15 @@ window.Collaborative = (function() {
     }
     isTracking = false;
     updateTrackingUI();
-
-    // Notifica outros que estou offline
     if (db && currentRoom && userName) {
-      const myDoc = db.collection('operacoes').doc(currentRoom).collection('operadores').doc(userName);
-      myDoc.update({ status: 'offline' }).catch(err => console.warn("Erro ao atualizar status offline:", err));
+      db.collection('operacoes').doc(currentRoom).collection('operadores').doc(userName)
+        .update({ status: 'offline' }).catch(e => console.warn("Status offline:", e));
     }
-
     if (window.toast) toast("Rastreamento interrompido", "info");
   }
 
   function toggleTracking() {
-    if (isTracking) {
-      stopTracking();
-    } else {
-      startTracking();
-    }
+    if (isTracking) stopTracking(); else startTracking();
   }
 
   function updateTrackingUI() {
@@ -193,33 +204,27 @@ window.Collaborative = (function() {
     }
   }
 
-  // Escuta a localização dos aliados.
-  // Usa snapshot completo: quem entra mais tarde vê todos já presentes.
+  // ─────────────────────────────────────────────────────────
+  // Snapshot de Operadores
+  // ─────────────────────────────────────────────────────────
   function listenAllies() {
     db.collection('operacoes').doc(currentRoom).collection('operadores')
       .onSnapshot((snapshot) => {
         const activeIds = new Set();
-
         snapshot.forEach((doc) => {
           activeIds.add(doc.id);
-          // Registra TODOS, mesmo sem GPS ainda
           processAllyUpdate(doc.id, doc.data());
         });
-
-        // Remove quem saiu da coleção
         const allTracked = new Set([...Object.keys(alliedMarkers), ...Object.keys(alliesData)]);
-        allTracked.forEach(id => {
-          if (!activeIds.has(id)) removeAllyMarker(id);
-        });
+        allTracked.forEach(id => { if (!activeIds.has(id)) removeAllyMarker(id); });
       }, (err) => {
-        console.error('[Collaborative] Erro no onSnapshot:', err);
+        console.error('[Collaborative] onSnapshot error:', err);
         if (window.toast) toast('Erro de sincronização: ' + err.message, 'error', 5000);
       });
   }
 
-  // Processa atualização de um doc do Firestore:
-  // sempre registra no painel; move marcador só se tiver coordenadas.
   function processAllyUpdate(id, data) {
+    // Atualiza posição local backup
     if (id === userName && data.lat !== undefined) {
       myLastPos = { lat: data.lat, lng: data.lng };
     }
@@ -228,231 +233,239 @@ window.Collaborative = (function() {
       lat:    data.lat,
       lng:    data.lng,
       status: data.status || 'online',
+      icon:   data.icon   || 'police',
     };
 
+    // Atualiza trilha se ativa (Opção A: acumulação local)
+    if (id !== userName && data.lat !== undefined && window.TrailManager) {
+      window.TrailManager.onPositionUpdate(id, data.lat, data.lng);
+    }
+
+    // Cria/move marcador no mapa
     if (id !== userName && data.lat !== undefined && data.lng !== undefined) {
-      _updateMarker(id, data.lat, data.lng, data.status);
+      _updateMarker(id, data.lat, data.lng, data.status, data.icon);
     }
 
     renderAlliesList();
   }
 
-  // Cria ou atualiza o marcador HTML de aliado no mapa.
-  function _updateMarker(id, lat, lng, status) {
+  // ─────────────────────────────────────────────────────────
+  // Marcadores de Aliados no Mapa
+  // ─────────────────────────────────────────────────────────
+  function _updateMarker(id, lat, lng, status, iconType) {
     if (!window.map) return;
     const isOffline = status === 'offline';
+    const cfg = OPERATOR_ICONS[iconType] || OPERATOR_ICONS.police;
 
     if (!alliedMarkers[id]) {
       const el = document.createElement('div');
       el.className = 'ally-marker';
-      el.style.opacity = isOffline ? '0.4' : '1';
       el.dataset.operatorId = id;
-
-      const inner = document.createElement('div');
-      inner.className = 'ally-marker-inner';
-      if (isOffline) inner.style.backgroundColor = '#94a3b8';
-      el.appendChild(inner);
-
-      const label = document.createElement('div');
-      label.className = 'ally-marker-label';
-      label.innerText = isOffline ? `${id} (offline)` : id;
-      el.appendChild(label);
-
-      alliedMarkers[id] = new maplibregl.Marker({ element: el })
+      el.style.opacity = isOffline ? '0.4' : '1';
+      el.innerHTML = `
+        <div class="ally-marker-frame" style="--ak-color:${cfg.color}">
+          <span class="ally-marker-icon">${cfg.emoji}</span>
+        </div>
+        <div class="ally-marker-label">${id}</div>
+      `;
+      alliedMarkers[id] = new maplibregl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat([lng, lat])
         .addTo(window.map);
     } else {
       alliedMarkers[id].setLngLat([lng, lat]);
-      const markerEl = alliedMarkers[id].getElement();
-      const innerEl  = markerEl.querySelector('.ally-marker-inner');
-      const labelEl  = markerEl.querySelector('.ally-marker-label');
+      const markerEl  = alliedMarkers[id].getElement();
+      const frameEl   = markerEl.querySelector('.ally-marker-frame');
+      const iconEl    = markerEl.querySelector('.ally-marker-icon');
+      const labelEl   = markerEl.querySelector('.ally-marker-label');
       markerEl.style.opacity = isOffline ? '0.4' : '1';
-      if (innerEl) innerEl.style.backgroundColor = isOffline ? '#94a3b8' : '';
-      if (labelEl) labelEl.innerText = isOffline ? `${id} (offline)` : id;
+      if (frameEl) frameEl.style.setProperty('--ak-color', cfg.color);
+      if (iconEl)  iconEl.textContent = cfg.emoji;
+      if (labelEl) labelEl.textContent = id;
     }
-  }
-
-  // Função pública: API anterior mantida por compatibilidade
-  function updateAllyMarker(id, lat, lng, status) {
-    processAllyUpdate(id, { lat, lng, status });
   }
 
   function removeAllyMarker(id) {
     if (alliesData[id]) delete alliesData[id];
-    renderAlliesList();
-
     if (alliedMarkers[id]) {
       alliedMarkers[id].remove();
       delete alliedMarkers[id];
     }
+    if (window.TrailManager) window.TrailManager.stopTrail(id);
+    renderAlliesList();
   }
 
+  // ─────────────────────────────────────────────────────────
+  // Painel de Aliados
+  // ─────────────────────────────────────────────────────────
   function renderAlliesList() {
     const ul = document.getElementById('allies-list-ul');
     if (!ul) return;
     ul.innerHTML = '';
 
-    // --- PRÓPRIO OPERADOR ---
+    // PRÓPRIO OPERADOR
     if (userName) {
+      const cfg = OPERATOR_ICONS[myIcon] || OPERATOR_ICONS.police;
       const selfLi = document.createElement('li');
-      selfLi.className = 'ally-item';
-      selfLi.style.borderLeft = '3px solid #4ade80';
-      selfLi.innerHTML = `<span class="ally-dot" style="background:#4ade80;box-shadow:0 0 8px #4ade80"></span><span>${userName} <em style="color:#64748b;font-size:0.7rem">(Eu)</em></span>`;
-      // Clique no próprio nome centraliza no mapa
+      selfLi.className = 'ally-item ally-self';
+      selfLi.innerHTML = `
+        <span class="ally-icon-badge" style="background:${cfg.color}">${cfg.emoji}</span>
+        <span class="ally-name">${userName} <em class="ally-tag">(Eu)</em></span>
+      `;
       selfLi.onclick = () => {
-        if (myLastPos && window.map) {
-          window.map.flyTo({ center: [myLastPos.lng, myLastPos.lat], zoom: 16 });
-        } else {
-          if (window.toast) toast('GPS próprio ainda não disponível', 'info');
-        }
+        if (myLastPos && window.map) window.map.flyTo({ center: [myLastPos.lng, myLastPos.lat], zoom: 16 });
+        else if (window.toast) toast('GPS próprio ainda não disponível', 'info');
       };
       ul.appendChild(selfLi);
     }
 
-    // --- DEMAIS OPERADORES ---
+    // OUTROS OPERADORES
     const others = Object.keys(alliesData).filter(id => id !== userName);
 
     if (others.length === 0) {
-      const emptyLi = document.createElement('li');
-      emptyLi.className = 'ally-item';
-      emptyLi.style.color = '#475569';
-      emptyLi.style.fontSize = '0.72rem';
-      emptyLi.style.justifyContent = 'center';
-      emptyLi.style.pointerEvents = 'none';
-      emptyLi.textContent = 'Aguardando outros operadores...';
-      ul.appendChild(emptyLi);
-      return;
+      const li = document.createElement('li');
+      li.className = 'ally-item ally-empty';
+      li.textContent = 'Aguardando outros operadores...';
+      ul.appendChild(li);
+    } else {
+      others.forEach(id => {
+        const li = document.createElement('li');
+        li.className = 'ally-item';
+
+        const fresh = alliesData[id]; // lido pelo nome, não capturado em closure!
+        const isOffline = fresh.status === 'offline';
+        const hasCoords = fresh.lat !== undefined && fresh.lng !== undefined;
+        const cfg = OPERATOR_ICONS[fresh.icon] || OPERATOR_ICONS.police;
+        const trailActive = window.TrailManager?.isActive(id) ?? false;
+
+        // Remove button
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'ally-remove-btn';
+        removeBtn.title = 'Remover da lista';
+        removeBtn.innerHTML = '&times;';
+        removeBtn.onclick = (e) => {
+          e.stopPropagation();
+          removeAllyMarker(id);
+          if (db && currentRoom) {
+            db.collection('operacoes').doc(currentRoom).collection('operadores')
+              .doc(id).delete().catch(err => console.warn('remove err:', err));
+          }
+          if (window.toast) toast(`Operador ${id} removido`, 'info');
+        };
+
+        // Trail button
+        const trailBtn = document.createElement('button');
+        trailBtn.className = 'ally-trail-btn' + (trailActive ? ' active' : '');
+        trailBtn.title = trailActive ? 'Parar trilha' : 'Gravar trilha';
+        trailBtn.innerHTML = trailActive ? '⏹️' : '🗺️';
+        trailBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (window.TrailManager) {
+            if (trailActive) {
+              window.TrailManager.stopTrail(id);
+            } else {
+              window.TrailManager.promptAndStart(id);
+            }
+            renderAlliesList();
+          }
+        };
+
+        // Conteúdo principal
+        li.innerHTML = `
+          <span class="ally-icon-badge" style="background:${cfg.color};opacity:${isOffline ? '0.5' : '1'}">${cfg.emoji}</span>
+          <span class="ally-name">
+            ${id}
+            ${isOffline ? '<em class="ally-tag ally-offline">(offline)</em>' : ''}
+            ${!hasCoords ? '<em class="ally-tag" style="color:#475569">(sem GPS)</em>' : ''}
+          </span>
+        `;
+        li.appendChild(trailBtn);
+        li.appendChild(removeBtn);
+
+        // Clique no item: flyTo + azimute (lê dados frescos)
+        li.onclick = (e) => {
+          if (e.target.closest('.ally-remove-btn') || e.target.closest('.ally-trail-btn')) return;
+
+          const f = alliesData[id]; // FRESH read
+          if (!f || f.lat === undefined) {
+            if (window.toast) toast(`${id} ainda não tem posição GPS`, 'info', 3000);
+            return;
+          }
+          if (window.map) window.map.flyTo({ center: [f.lng, f.lat], zoom: 16, speed: 1.6 });
+          if (myLastPos) {
+            const dist = calcDistance(myLastPos.lat, myLastPos.lng, f.lat, f.lng);
+            const az   = calcBearing(myLastPos.lat, myLastPos.lng, f.lat, f.lng);
+            const dtx  = dist > 999 ? (dist / 1000).toFixed(1) + ' km' : Math.round(dist) + ' m';
+            if (window.toast) toast(`🚩 ${id} | ${dtx} | Az ${Math.round(az)}°`, 'info', 6000);
+          } else {
+            if (window.toast) toast('Ative seu GPS para calcular azimute', 'info', 3000);
+          }
+        };
+
+        ul.appendChild(li);
+      });
     }
 
-    others.forEach(id => {
-      // *** BUG FIX: Lê alliesData[id] DIRETAMENTE no onclick
-      // (não capturar `data` na closure, pois o objeto é substituido a cada update)
-      const snapshot = alliesData[id];
-      const isOffline = snapshot.status === 'offline';
-      const hasCoords = snapshot.lat !== undefined && snapshot.lng !== undefined;
-
-      const li = document.createElement('li');
-      li.className = 'ally-item';
-      if (isOffline) li.style.opacity = '0.55';
-
-      // Botão de remover (X)
-      const removeBtn = document.createElement('button');
-      removeBtn.className = 'ally-remove-btn';
-      removeBtn.title = 'Remover da lista';
-      removeBtn.style.cssText = 'background:none;border:none;color:#f87171;cursor:pointer;font-size:0.9rem;padding:0 6px;margin-left:auto;flex-shrink:0;line-height:1';
-      removeBtn.innerHTML = '&times;';
-      removeBtn.onclick = (e) => {
-        e.stopPropagation();
-        removeAllyMarker(id);
-        if (db && currentRoom) {
-          db.collection('operacoes').doc(currentRoom).collection('operadores').doc(id)
-            .delete().catch(err => console.warn('Erro ao remover operador:', err));
-        }
-        if (window.toast) toast(`Operador ${id} removido`, 'info');
-      };
-
-      const dot = `<span class="ally-dot" style="${isOffline ? 'background:#64748b;box-shadow:none' : ''}"` +
-                  `${!hasCoords ? ';opacity:0.4' : ''}"></span>`;
-      const lbl = `<span>${id}${isOffline ? ' <em style="color:#64748b;font-size:0.68rem">(offline)</em>' : ''}` +
-                  `${!hasCoords ? ' <em style="color:#475569;font-size:0.65rem">(sem GPS)</em>' : ''}</span>`;
-      li.innerHTML = dot + lbl;
-      li.appendChild(removeBtn);
-
-      li.onclick = (e) => {
-        // Ignora clique no botão de remover (ou em seus filhos)
-        if (e.target.closest('.ally-remove-btn')) return;
-
-        // Lê dados FRESCOS do alliesData no momento do clique
-        const fresh = alliesData[id];
-        if (!fresh || fresh.lat === undefined) {
-          if (window.toast) toast(`${id} ainda não tem posição GPS`, 'info', 3000);
-          return;
-        }
-
-        // Centraliza no mapa
-        if (window.map) {
-          window.map.flyTo({ center: [fresh.lng, fresh.lat], zoom: 16, speed: 1.6 });
-        }
-
-        // Calcula distância e azimute
-        if (myLastPos) {
-          const dist    = calcDistance(myLastPos.lat, myLastPos.lng, fresh.lat, fresh.lng);
-          const az      = calcBearing(myLastPos.lat, myLastPos.lng, fresh.lat, fresh.lng);
-          const distTxt = dist > 999 ? (dist / 1000).toFixed(1) + ' km' : Math.round(dist) + ' m';
-          if (window.toast) toast(`🚩 ${id} | ${distTxt} | Az ${Math.round(az)}°`, 'info', 6000);
-        } else {
-          if (window.toast) toast('Ative seu GPS para calcular azimute', 'info', 3000);
-        }
-      };
-
-      ul.appendChild(li);
-    });
-
-    // Botão de sair da operação
+    // Botão de sair
     const leaveLi = document.createElement('li');
-    leaveLi.className = 'ally-item';
-    leaveLi.style.cssText = 'justify-content:center;border-top:1px solid rgba(74,222,128,0.15);margin-top:4px;padding-top:6px;';
+    leaveLi.className = 'ally-item ally-leave';
     const leaveBtn = document.createElement('button');
+    leaveBtn.className = 'ally-leave-btn';
     leaveBtn.textContent = '🚪 Sair da Operação';
-    leaveBtn.style.cssText = 'background:none;border:1px solid #f87171;color:#f87171;border-radius:4px;padding:4px 12px;cursor:pointer;font-size:0.75rem;width:100%;';
     leaveBtn.onclick = leaveOperation;
     leaveLi.appendChild(leaveBtn);
     ul.appendChild(leaveLi);
   }
 
+  // ─────────────────────────────────────────────────────────
+  // Sair da Operação
+  // ─────────────────────────────────────────────────────────
   function leaveOperation() {
     if (!currentRoom || !userName) return;
-
     stopTracking();
 
-    // Deleta o próprio documento do Firestore
     db.collection('operacoes').doc(currentRoom).collection('operadores').doc(userName)
       .delete().catch(e => console.warn('Erro ao sair:', e));
 
-    // Limpa todos os marcadores e dados
-    Object.keys(alliedMarkers).forEach(id => {
-      try { alliedMarkers[id].remove(); } catch {}
-    });
+    Object.keys(alliedMarkers).forEach(id => { try { alliedMarkers[id].remove(); } catch {} });
     alliedMarkers = {};
     alliesData    = {};
-    currentRoom   = null;
-    userName      = null;
 
-    // Oculta painel de aliados e controles de GPS
+    if (window.SharedMarkers) window.SharedMarkers.stopListening();
+    if (window.TrailManager)  window.TrailManager.clearAll();
+
+    currentRoom = null;
+    userName    = null;
+
     const alliesPanel = document.getElementById('allies-panel');
     if (alliesPanel) alliesPanel.style.display = 'none';
-    if (gpsControls)  gpsControls.style.display  = 'none';
+    if (gpsControls)  gpsControls.style.display = 'none';
+    const btnMark = document.getElementById('btn-mark-point');
+    if (btnMark) btnMark.style.display = 'none';
+
     if (window.toast) toast('Você saiu da operação', 'info');
   }
 
-  // Matemática Geoespacial (Haversine e Radianos Esféricos)
+  // ─────────────────────────────────────────────────────────
+  // Matemática Geoespacial
+  // ─────────────────────────────────────────────────────────
   function calcDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371e3; // Raios da terra em metros
-    const p1 = lat1 * Math.PI/180;
-    const p2 = lat2 * Math.PI/180;
-    const dp = (lat2-lat1) * Math.PI/180;
-    const dl = (lon2-lon1) * Math.PI/180;
-    const a = Math.sin(dp/2)*Math.sin(dp/2) + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)*Math.sin(dl/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
+    const R = 6371e3;
+    const p1 = lat1 * Math.PI / 180, p2 = lat2 * Math.PI / 180;
+    const dp = (lat2 - lat1) * Math.PI / 180, dl = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   }
 
   function calcBearing(lat1, lon1, lat2, lon2) {
-    const p1 = lat1 * Math.PI/180;
-    const p2 = lat2 * Math.PI/180;
-    const dl = (lon2-lon1) * Math.PI/180;
-    const y = Math.sin(dl) * Math.cos(p2);
+    const p1 = lat1 * Math.PI/180, p2 = lat2 * Math.PI/180;
+    const dl = (lon2 - lon1) * Math.PI/180;
+    const y = Math.sin(dl)*Math.cos(p2);
     const x = Math.cos(p1)*Math.sin(p2) - Math.sin(p1)*Math.cos(p2)*Math.cos(dl);
-    const rad = Math.atan2(y, x);
-    return (rad * 180 / Math.PI + 360) % 360; // 0-360
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
   }
 
-  function getUserName() {
-    return userName;
-  }
+  function getUserName() { return userName; }
 
-  // Auto init
   window.addEventListener('DOMContentLoaded', init);
-
   return { init, getUserName };
 })();
