@@ -65,6 +65,7 @@ function initMap() {
     Compass.init(map);
     LayerManager.init(map);
     PrintEngine.init(map);
+    Ruler.init(map);
 
     // UI
     initControls();
@@ -73,6 +74,7 @@ function initMap() {
     bindSearch();
     bindPrintModal();
     bindZoomButtons();
+    bindRuler();
 
     // Listeners de mapa
     map.on('mousemove', onMouseMove);
@@ -183,7 +185,7 @@ function bindToggleOverlays() {
   bindOpacity('opacity-ibge',    'oval-ibge',    'ibge');
 }
 
-// ── Busca por coordenadas ────────────────────────────────────
+// -- Busca Hibrida: Coordenadas OU Nome de Local (Nominatim/OSM)
 function bindSearch() {
   $('btn-go-coord').addEventListener('click', goToCoord);
   $('coord-search').addEventListener('keydown', e => {
@@ -191,20 +193,92 @@ function bindSearch() {
   });
 }
 
-function goToCoord() {
+async function goToCoord() {
   const raw = $('coord-search').value.trim();
   if (!raw) return;
 
-  // aceita: "lat, lon" ou "lat lon"
-  const parts = raw.replace(',', ' ').trim().split(/\s+/);
-  if (parts.length < 2) { toast('Formato inválido. Ex: -20.3155, -40.3128', 'error'); return; }
-
-  const lat = parseFloat(parts[0]);
-  const lon = parseFloat(parts[1]);
-  if (isNaN(lat) || isNaN(lon)) { toast('Coordenadas inválidas', 'error'); return; }
-  if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
-    toast('Coordenadas fora do intervalo', 'error'); return;
+  // Tenta parsear como coordenadas numericas
+  const numParts = raw.replace(',', ' ').trim().split(/\s+/);
+  if (numParts.length >= 2) {
+    const lat = parseFloat(numParts[0]);
+    const lon = parseFloat(numParts[1]);
+    if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+      map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 14), speed: 1.8 });
+      toast(`✅ Coordenada: ${lat.toFixed(5)}, ${lon.toFixed(5)}`, 'success');
+      return;
+    }
   }
+
+  // Busca textual via Nominatim (OSM, gratuito)
+  toast('Buscando local...', 'info', 2500);
+  await _nominatimSearch(raw);
+}
+
+async function _nominatimSearch(query) {
+  const resultsEl = $('search-results');
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=br&accept-language=pt-BR`;
+  try {
+    const res  = await fetch(url, { headers: { 'Accept-Language': 'pt-BR' } });
+    const data = await res.json();
+    if (!data.length) {
+      toast('Local nao encontrado. Tente coordenadas lat,lon.', 'error', 4000);
+      return;
+    }
+    if (data.length === 1) {
+      _flyToResult(data[0]);
+    } else {
+      _showSearchResults(data);
+    }
+  } catch (err) {
+    toast('Erro na busca. Verifique a conexao.', 'error', 4000);
+    console.warn('[Nominatim]', err);
+  }
+}
+
+function _showSearchResults(results) {
+  const el = $('search-results');
+  if (!el) return;
+  el.innerHTML = '';
+  el.style.display = 'block';
+  results.forEach(r => {
+    const item = document.createElement('button');
+    item.className = 'search-result-item';
+    item.textContent = r.display_name;
+    item.onclick = () => {
+      _flyToResult(r);
+      el.style.display = 'none';
+      el.innerHTML = '';
+    };
+    el.appendChild(item);
+  });
+  setTimeout(() => document.addEventListener('click', function closeResults(ev) {
+    if (!el.contains(ev.target)) { el.style.display = 'none'; document.removeEventListener('click', closeResults); }
+  }), 100);
+}
+
+function _flyToResult(r) {
+  const lat  = parseFloat(r.lat);
+  const lon  = parseFloat(r.lon);
+  const bbox = r.boundingbox;
+  if (bbox) {
+    map.fitBounds(
+      [[parseFloat(bbox[2]), parseFloat(bbox[0])], [parseFloat(bbox[3]), parseFloat(bbox[1])]],
+      { padding: 40, duration: 1500 }
+    );
+  } else {
+    map.flyTo({ center: [lon, lat], zoom: 15, speed: 1.8 });
+  }
+  toast(`✅ ${r.display_name.split(',')[0]}`, 'success', 3000);
+}
+
+// -- Regua Tatica -------------------------------------------------
+function bindRuler() {
+  const btn = $('btn-ruler');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    if (window.Ruler) Ruler.toggle();
+  });
+}
 
   map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 14), speed: 1.8 });
   toast(`Navegando para ${lat.toFixed(5)}, ${lon.toFixed(5)}`, 'success');

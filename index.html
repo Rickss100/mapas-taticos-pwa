@@ -198,14 +198,35 @@
         </div>
       </section>
 
-      <!-- Coordinate Search -->
+      <!-- Coordinate / Place Search (Nominatim hybrid) -->
       <section class="panel-section">
-        <h3 class="section-title">Buscar Coordenadas</h3>
+        <h3 class="section-title">Buscar Local ou Coord.</h3>
         <div class="search-box">
-          <input type="text" id="coord-search" placeholder="Ex: -20.3155, -40.3128" aria-label="Buscar por coordenadas" />
-          <button id="btn-go-coord" class="btn-primary" aria-label="Ir para coordenadas">Ir</button>
+          <input type="text" id="coord-search"
+            placeholder="Ex: -20.31,-40.31 ou Jesus de Nazareth"
+            aria-label="Buscar local ou coordenadas" />
+          <button id="btn-go-coord" class="btn-primary" aria-label="Ir para local">Ir</button>
         </div>
-        <p class="search-hint">Latitude, Longitude (graus decimais)</p>
+        <p class="search-hint">Coordenadas decimais <em>ou</em> nome de bairro/cidade</p>
+        <div id="search-results" class="search-results" style="display:none"></div>
+      </section>
+
+      <!-- Regua Tatica -->
+      <section class="panel-section" id="section-ruler">
+        <h3 class="section-title">Regua Tatica</h3>
+        <button id="btn-ruler" class="ruler-toggle-btn" title="Medir distancia no mapa">
+          <span>&#x1F4CF;</span> Medir Distancia
+        </button>
+        <div id="ruler-stats" class="ruler-stats-panel" style="display:none"></div>
+        <p class="search-hint">Clique nos pontos do mapa para medir. <strong>Esc</strong> para apagar.</p>
+      </section>
+
+      <!-- Gerenciador de Marcadores -->
+      <section class="panel-section" id="section-marker-manager" style="display:none">
+        <h3 class="section-title">Marcadores na Área</h3>
+        <ul id="marker-manager-list" class="marker-mgr-list">
+          <li class="marker-mgr-empty">Nenhum marcador ativo</li>
+        </ul>
       </section>
 
       <!-- Rastreamento Tático -->
@@ -411,6 +432,7 @@
   <script src="modules/layers.js"></script>
   <script src="modules/print.js"></script>
   <script src="modules/printframe.js"></script>
+  <script src="modules/ruler.js"></script>
   <!-- Inicializa icon selector no modal -->
   <script>
     document.querySelectorAll('.icon-sel-btn').forEach(btn => {

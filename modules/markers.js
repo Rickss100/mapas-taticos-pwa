@@ -1,6 +1,7 @@
 /**
  * modules/markers.js — BrasilCartaPro
  * Marcadores táticos compartilhados em tempo real (Firestore ↔ MapLibre)
+ * v2: Painel Gerenciador lateral + Alertas de Proximidade (Feature 3.1 + 4.2)
  */
 
 ;(function(window) {
@@ -12,14 +13,23 @@
     OBJETIVO: { color: '#ef4444', emoji: '🎯', label: 'Objetivo' },
   };
 
+  // Raio de alerta de proximidade em metros
+  const PROXIMITY_RADIUS_M = 500;
+  // Intervalo de checagem em ms
+  const PROXIMITY_INTERVAL_MS = 30000;
+
   const SharedMarkers = {
-    _db:       null,
-    _map:      null,
-    _room:     null,
-    _user:     null,
-    _unsub:    null,
-    _markers:  {}, // markerId -> { marker: MaplibreMarker }
-    _addMode:  false,
+    _db:               null,
+    _map:              null,
+    _room:             null,
+    _user:             null,
+    _unsub:            null,
+    _markers:          {},   // markerId → { marker, data }
+    _addMode:          false,
+    _addClickHandler:  null,
+    _addKeyHandler:    null,
+    _proximityTimer:   null,
+    _alertedIds:       new Set(), // IDs já alertados (reset a cada 5min)
 
     init(mapInstance, dbInstance) {
       this._map = mapInstance;
@@ -44,20 +54,26 @@
           Object.keys(this._markers).forEach(id => {
             if (!activeIds.has(id)) this._removeMarker(id);
           });
+          this._renderManagerPanel();
         }, err => {
           console.error('[SharedMarkers] onSnapshot error:', err);
         });
+
+      // Inicia loop de alertas de proximidade
+      this._startProximityLoop();
     },
 
     stopListening() {
       if (this._unsub) { this._unsub(); this._unsub = null; }
       Object.keys(this._markers).forEach(id => this._removeMarker(id));
       this._markers = {};
-      this._room = null;
-      this._user = null;
+      this._room    = null;
+      this._user    = null;
+      this._stopProximityLoop();
+      this._clearManagerPanel();
     },
 
-    // Entra em modo de adicionar. Clique novamente no botao ou Esc para cancelar.
+    // ── Add Mode ──────────────────────────────────────────────────────────
     enableAddMode() {
       if (!this._map) return;
       if (this._addMode) { this._cancelAddMode(); return; }
@@ -74,7 +90,7 @@
       this._addKeyHandler   = onKeyDown;
       document.addEventListener('keydown', onKeyDown);
 
-      // Delay obrigatorio: o clique no botao ainda esta propagando; sem delay capturaria o proprio clique
+      // Delay obrigatório: evita capturar o próprio clique no botão
       setTimeout(() => { if (this._addMode) this._map.on('click', onClick); }, 150);
     },
 
@@ -90,11 +106,11 @@
 
     _cancelAddMode() {
       this._finishAddMode();
-      if (window.toast) toast('Marcacao cancelada', 'info', 2000);
+      if (window.toast) toast('Marcação cancelada', 'info', 2000);
     },
 
+    // ── Add Dialog ────────────────────────────────────────────────────────
     _showAddDialog(lat, lng) {
-      // Remove diálogo anterior se existir
       document.getElementById('marker-add-dialog')?.remove();
 
       const dialog = document.createElement('div');
@@ -121,11 +137,8 @@
       `;
 
       document.body.appendChild(dialog);
-
-      // Foco no input
       setTimeout(() => dialog.querySelector('#marker-label-in').focus(), 80);
 
-      // Seleção de tipo
       let selectedType = 'PONTO';
       const typeBtns = dialog.querySelectorAll('.mtype-btn');
       typeBtns.forEach(btn => {
@@ -144,6 +157,7 @@
       };
     },
 
+    // ── Save / Upsert / Remove ────────────────────────────────────────────
     _saveMarker(lat, lng, type, label) {
       if (!this._db || !this._room) return;
       this._db.collection('operacoes').doc(this._room).collection('mapMarkers')
@@ -163,6 +177,7 @@
 
       if (this._markers[id]) {
         this._markers[id].marker.setLngLat([data.lng, data.lat]);
+        this._markers[id].data = data;
         return;
       }
 
@@ -185,9 +200,17 @@
         .setLngLat([data.lng, data.lat])
         .addTo(this._map);
 
-      this._markers[id] = { marker };
+      this._markers[id] = { marker, data };
     },
 
+    _removeMarker(id) {
+      if (this._markers[id]) {
+        this._markers[id].marker.remove();
+        delete this._markers[id];
+      }
+    },
+
+    // ── Popup ─────────────────────────────────────────────────────────────
     _showPopup(id, data) {
       document.querySelectorAll('.sm-popup').forEach(p => p.remove());
       const cfg = MARKER_TYPES[data.type] || MARKER_TYPES.PONTO;
@@ -198,9 +221,14 @@
         <div class="sm-popup-type" style="color:${cfg.color}">${cfg.emoji} ${cfg.label}</div>
         ${data.label ? `<div class="sm-popup-label">${data.label}</div>` : ''}
         <div class="sm-popup-meta">Por: ${data.createdBy || '—'}</div>
+        <button class="sm-popup-focus">🗺️ Focar</button>
         <button class="sm-popup-del" data-del="${id}">🗑️ Excluir</button>
       `;
 
+      popup.querySelector('.sm-popup-focus').onclick = () => {
+        this._map.flyTo({ center: [data.lng, data.lat], zoom: Math.max(this._map.getZoom(), 16), speed: 1.8 });
+        popup.remove();
+      };
       popup.querySelector('[data-del]').onclick = () => {
         this.deleteMarker(id);
         popup.remove();
@@ -208,29 +236,111 @@
 
       document.getElementById('map-container').appendChild(popup);
 
-      // Posiciona perto do marcador
       const pt = this._map.project([data.lng, data.lat]);
       popup.style.left = (pt.x + 16) + 'px';
       popup.style.top  = (pt.y - 48) + 'px';
 
-      // Fecha ao clicar no mapa
       const close = () => { popup.remove(); this._map.off('click', close); };
       setTimeout(() => this._map.on('click', close), 100);
     },
 
-    _removeMarker(id) {
-      if (this._markers[id]) {
-        this._markers[id].marker.remove();
-        delete this._markers[id];
-      }
-    },
-
+    // ── Delete ────────────────────────────────────────────────────────────
     deleteMarker(id) {
       if (!this._db || !this._room) return;
       this._db.collection('operacoes').doc(this._room).collection('mapMarkers')
         .doc(id).delete()
         .then(() => { if (window.toast) toast('Marcador removido', 'info'); })
         .catch(e => console.error('[SharedMarkers] delete error:', e));
+    },
+
+    // ── Painel Gerenciador (Sidebar) ──────────────────────────────────────
+    _renderManagerPanel() {
+      const section = document.getElementById('section-marker-manager');
+      const list    = document.getElementById('marker-manager-list');
+      if (!list) return;
+
+      const ids = Object.keys(this._markers);
+      if (ids.length === 0) {
+        section && (section.style.display = 'none');
+        list.innerHTML = '<li class="marker-mgr-empty">Nenhum marcador ativo</li>';
+        return;
+      }
+
+      section && (section.style.display = 'block');
+      list.innerHTML = '';
+
+      ids.forEach(id => {
+        const { data } = this._markers[id];
+        const cfg = MARKER_TYPES[data.type] || MARKER_TYPES.PONTO;
+        const li = document.createElement('li');
+        li.className = 'marker-mgr-item';
+        li.innerHTML = `
+          <span class="mmgr-icon" style="color:${cfg.color}">${cfg.emoji}</span>
+          <span class="mmgr-label">${data.label || cfg.label}</span>
+          <span class="mmgr-by">${data.createdBy || ''}</span>
+          <div class="mmgr-actions">
+            <button class="mmgr-btn-focus" title="Focar no mapa">🗺️</button>
+            <button class="mmgr-btn-del"   title="Excluir">🗑️</button>
+          </div>
+        `;
+        li.querySelector('.mmgr-btn-focus').onclick = () => {
+          this._map.flyTo({ center: [data.lng, data.lat], zoom: Math.max(this._map.getZoom(), 16), speed: 1.8 });
+        };
+        li.querySelector('.mmgr-btn-del').onclick = () => {
+          this.deleteMarker(id);
+        };
+        list.appendChild(li);
+      });
+    },
+
+    _clearManagerPanel() {
+      const section = document.getElementById('section-marker-manager');
+      if (section) section.style.display = 'none';
+      const list = document.getElementById('marker-manager-list');
+      if (list) list.innerHTML = '<li class="marker-mgr-empty">Nenhum marcador ativo</li>';
+    },
+
+    // ── Alertas de Proximidade (Feature 4.2) ──────────────────────────────
+    _startProximityLoop() {
+      this._stopProximityLoop();
+      this._proximityTimer = setInterval(() => this._checkProximity(), PROXIMITY_INTERVAL_MS);
+    },
+
+    _stopProximityLoop() {
+      if (this._proximityTimer) { clearInterval(this._proximityTimer); this._proximityTimer = null; }
+    },
+
+    _checkProximity() {
+      const myPos = window._myGpsPos;
+      if (!myPos) return;
+
+      // Reset lista de alertados a cada ~5 minutos (10 ciclos de 30s)
+      if (this._alertCycle === undefined) this._alertCycle = 0;
+      this._alertCycle++;
+      if (this._alertCycle >= 10) { this._alertedIds.clear(); this._alertCycle = 0; }
+
+      Object.entries(this._markers).forEach(([id, { data }]) => {
+        if (this._alertedIds.has(id)) return;
+        // Só alerta para ALERTA e OBJETIVO
+        if (!['ALERTA', 'OBJETIVO'].includes(data.type)) return;
+
+        const dist = this._haversine(myPos.lat, myPos.lng, data.lat, data.lng);
+        if (dist <= PROXIMITY_RADIUS_M) {
+          this._alertedIds.add(id);
+          const cfg  = MARKER_TYPES[data.type];
+          const desc = data.label ? `"${data.label}"` : cfg.label;
+          if (window.toast) toast(`${cfg.emoji} ALERTA: ${desc} a ${Math.round(dist)}m de você!`, 'error', 8000);
+        }
+      });
+    },
+
+    _haversine(lat1, lng1, lat2, lng2) {
+      const R    = 6371000;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a    = Math.sin(dLat/2)**2
+                 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     },
   };
 
