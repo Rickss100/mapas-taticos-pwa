@@ -57,21 +57,40 @@
       this._user = null;
     },
 
-    // Entra em modo de adicionar: cursor vira crosshair e aguarda clique no mapa
+    // Entra em modo de adicionar. Clique novamente no botao ou Esc para cancelar.
     enableAddMode() {
       if (!this._map) return;
-      if (this._addMode) return;
+      if (this._addMode) { this._cancelAddMode(); return; }
+
       this._addMode = true;
       this._map.getCanvas().style.cursor = 'crosshair';
-      if (window.toast) toast('Clique no mapa para marcar o ponto tático', 'info', 3000);
+      document.getElementById('btn-mark-point')?.classList.add('mark-active');
+      if (window.toast) toast('Clique no mapa para marcar o ponto. Esc para cancelar.', 'info', 4000);
 
-      const onClick = (e) => {
-        this._addMode = false;
-        this._map.getCanvas().style.cursor = '';
-        this._map.off('click', onClick);
-        this._showAddDialog(e.lngLat.lat, e.lngLat.lng);
-      };
-      this._map.on('click', onClick);
+      const onClick = (e) => { this._finishAddMode(); this._showAddDialog(e.lngLat.lat, e.lngLat.lng); };
+      const onKeyDown = (e) => { if (e.key === 'Escape') { this._cancelAddMode(); document.removeEventListener('keydown', onKeyDown); } };
+
+      this._addClickHandler = onClick;
+      this._addKeyHandler   = onKeyDown;
+      document.addEventListener('keydown', onKeyDown);
+
+      // Delay obrigatorio: o clique no botao ainda esta propagando; sem delay capturaria o proprio clique
+      setTimeout(() => { if (this._addMode) this._map.on('click', onClick); }, 150);
+    },
+
+    _finishAddMode() {
+      this._addMode = false;
+      if (this._map && this._addClickHandler) this._map.off('click', this._addClickHandler);
+      if (this._addKeyHandler) document.removeEventListener('keydown', this._addKeyHandler);
+      this._addClickHandler = null;
+      this._addKeyHandler   = null;
+      if (this._map) this._map.getCanvas().style.cursor = '';
+      document.getElementById('btn-mark-point')?.classList.remove('mark-active');
+    },
+
+    _cancelAddMode() {
+      this._finishAddMode();
+      if (window.toast) toast('Marcacao cancelada', 'info', 2000);
     },
 
     _showAddDialog(lat, lng) {

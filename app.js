@@ -81,6 +81,16 @@ function initMap() {
 
     onMapMove(); // Atualiza info imediatamente
 
+    // Fix 1.2/1.4: feedback de erro de camadas WMS externas
+    map.on('error', (e) => {
+      const src = e?.sourceId || '';
+      if (src.includes('ibge')) {
+        toast('⚠️ Limites IBGE: servidor bloqueou requisição (CORS). Indisponível no browser.', 'error', 7000);
+      } else if (src.includes('inde') || src.includes('dsg')) {
+        toast('⚠️ Carta DSG: servidor militar pode estar indisponível. Tente novamente mais tarde.', 'info', 5000);
+      }
+    });
+
     // Observer garante que o WebGL Canvas não seja achatado
     const resizeObserver = new ResizeObserver(() => {
       if (window.map) {
@@ -200,55 +210,148 @@ function goToCoord() {
   toast(`Navegando para ${lat.toFixed(5)}, ${lon.toFixed(5)}`, 'success');
 }
 
-// ── Minha Localização ────────────────────────────────────────
-$('btn-my-location').addEventListener('click', () => {
-  if (!navigator.geolocation) { toast('Geolocalização não suportada', 'error'); return; }
-  toast('Obtendo localização...', 'info');
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      const { latitude: lat, longitude: lon, accuracy } = pos.coords;
-      map.flyTo({ center: [lon, lat], zoom: 16, speed: 1.6 });
-      toast(`Localização: ±${Math.round(accuracy)}m`, 'success');
+// -- Seguir Localizacao (Feature 2.1) --
+// 3 estados: off -> locate-once -> follow
+const MyLocation = (function() {
+  const STATES = { OFF: 0, ONCE: 1, FOLLOW: 2 };
+  let state   = STATES.OFF;
+  let watchId = null;
+  let marker  = null;
 
-      // Marcador temporário
+  function getBtn() { return document.getElementById('btn-my-location'); }
+
+  function updateBtn() {
+    const b = getBtn();
+    if (!b) return;
+    // OFF: icone de mira vazia
+    if (state === STATES.OFF) {
+      b.innerHTML = '&#9678;'; b.className = 'map-icon-btn';
+      b.title = 'Localizar minha posicao';
+    }
+    // ONCE: procurando GPS
+    if (state === STATES.ONCE) {
+      b.innerHTML = '&#9677;'; b.className = 'map-icon-btn loc-active';
+      b.title = 'Localizando...';
+    }
+    // FOLLOW: seguindo
+    if (state === STATES.FOLLOW) {
+      b.innerHTML = '&#9677;'; b.className = 'map-icon-btn loc-active loc-follow';
+      b.title = 'Seguindo posicao (clique para parar)';
+    }
+  }
+
+  function updateDot(lat, lng, accuracy) {
+    if (!window.map) return;
+    if (!marker) {
       const el = document.createElement('div');
       el.className = 'my-location-dot';
-      el.style.cssText = `
-        width: 16px; height: 16px;
-        background: #4ade80;
-        border: 3px solid white;
-        border-radius: 50%;
-        box-shadow: 0 0 0 4px rgba(74,222,128,0.3);
-        animation: pulse-loc 2s ease-in-out infinite;
-      `;
-      new maplibregl.Marker({ element: el })
-        .setLngLat([lon, lat])
-        .addTo(map);
+      el.innerHTML = '<div class="mld-inner"></div>';
+      marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([lng, lat]).addTo(window.map);
+    } else {
+      marker.setLngLat([lng, lat]);
+    }
+    const geo = buildCircle(lat, lng, Math.max(10, accuracy));
+    if (window.map.getSource('my-accuracy')) {
+      window.map.getSource('my-accuracy').setData(geo);
+    } else if (window.map.isStyleLoaded()) {
+      window.map.addSource('my-accuracy', { type: 'geojson', data: geo });
+      window.map.addLayer({ id: 'my-accuracy-fill', type: 'fill', source: 'my-accuracy',
+        paint: { 'fill-color': '#4ade80', 'fill-opacity': 0.08 } });
+      window.map.addLayer({ id: 'my-accuracy-line', type: 'line', source: 'my-accuracy',
+        paint: { 'line-color': '#4ade80', 'line-width': 1.5, 'line-opacity': 0.5 } });
+    }
+    if (state === STATES.FOLLOW) window.map.easeTo({ center: [lng, lat], duration: 800 });
+  }
 
-      // Adiciona estilo de animação
-      if (!document.getElementById('loc-style')) {
-        const s = document.createElement('style');
-        s.id = 'loc-style';
-        s.textContent = `
-          @keyframes pulse-loc {
-            0%,100% { box-shadow: 0 0 0 4px rgba(74,222,128,0.3); }
-            50%      { box-shadow: 0 0 0 10px rgba(74,222,128,0); }
-          }
-        `;
-        document.head.appendChild(s);
-      }
-    },
-    err => {
-      const messages = {
-        1: 'Permissão de localização negada',
-        2: 'Localização indisponível',
-        3: 'Tempo esgotado',
-      };
-      toast(messages[err.code] || 'Erro de geolocalização', 'error');
-    },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-  );
-});
+  function removeDot() {
+    if (marker) { marker.remove(); marker = null; }
+    if (window.map && window.map.isStyleLoaded()) {
+      try { window.map.removeLayer('my-accuracy-fill'); } catch (_) {}
+      try { window.map.removeLayer('my-accuracy-line'); } catch (_) {}
+      try { window.map.removeSource('my-accuracy'); }     catch (_) {}
+    }
+  }
+
+  function handleGpsError(err) {
+    state = STATES.OFF;
+    if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+    updateBtn();
+    const msgs = {
+      1: 'GPS negado. Ative em Configuracoes > Privacidade > Localizacao',
+      2: 'Sinal GPS indisponivel. Va a area aberta ou ative dados moveis',
+      3: 'Tempo de GPS esgotado. Tente novamente',
+    };
+    toast(msgs[err.code] || 'Erro de geolocalizacao', 'error', 7000);
+  }
+
+  function startFollow() {
+    if (watchId !== null) return;
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        updateDot(lat, lng, accuracy);
+        window._myGpsPos = { lat, lng };
+      },
+      (err) => handleGpsError(err),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 3000 }
+    );
+  }
+
+  function toggle() {
+    if (!navigator.geolocation) { toast('GPS nao suportado neste dispositivo', 'error'); return; }
+    if (state === STATES.ONCE) return; // aguardando resposta GPS
+
+    if (state === STATES.FOLLOW) {
+      state = STATES.OFF;
+      if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+      removeDot();
+      updateBtn();
+      toast('Rastreamento de posicao desativado', 'info', 2500);
+      return;
+    }
+
+    // State === OFF -> inicia
+    state = STATES.ONCE; updateBtn();
+    toast('Localizando...', 'info', 2000);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+        window.map.flyTo({ center: [lng, lat], zoom: Math.max(window.map.getZoom(), 15), speed: 1.6 });
+        state = STATES.FOLLOW; updateBtn();
+        updateDot(lat, lng, accuracy);
+        window._myGpsPos = { lat, lng };
+        startFollow();
+        toast('Seguindo sua posicao', 'success', 3000);
+      },
+      (err) => handleGpsError(err),
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
+  }
+
+  function getPosition() { return window._myGpsPos || null; }
+  return { toggle, getPosition };
+})();
+
+document.getElementById('btn-my-location')?.addEventListener('click', () => MyLocation.toggle());
+window.MyLocation = MyLocation;
+
+// Constroi GeoJSON de circulo aproximado (lat/lng, raio em metros)
+function buildCircle(lat, lng, radiusM, steps) {
+  steps = steps || 64;
+  const coords = [];
+  for (let i = 0; i <= steps; i++) {
+    const angle = (i / steps) * 2 * Math.PI;
+    const dx = radiusM * Math.cos(angle);
+    const dy = radiusM * Math.sin(angle);
+    const dLat = (dy / 6371000) * (180 / Math.PI);
+    const dLng = (dx / (6371000 * Math.cos(lat * Math.PI / 180))) * (180 / Math.PI);
+    coords.push([lng + dLng, lat + dLat]);
+  }
+  return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] } };
+}
+
 
 // ── Eventos do mapa ──────────────────────────────────────────
 function onMouseMove(e) {
