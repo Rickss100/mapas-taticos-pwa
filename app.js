@@ -280,9 +280,6 @@ function bindRuler() {
   });
 }
 
-  map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 14), speed: 1.8 });
-  toast(`Navegando para ${lat.toFixed(5)}, ${lon.toFixed(5)}`, 'success');
-}
 
 // -- Seguir Localizacao (Feature 2.1) --
 // 3 estados: off -> locate-once -> follow
