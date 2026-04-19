@@ -1,9 +1,9 @@
-/**
- * sw.js — Service Worker BrasilCartaPro
- * Cache-first para tiles já baixados · Stale-while-revalidate para shell
+﻿/**
+ * sw.js â€” Service Worker BrasilCartaPro
+ * Cache-first para tiles jÃ¡ baixados Â· Stale-while-revalidate para shell
  */
 
-const CACHE_NAME  = 'cartapro-v17';
+const CACHE_NAME  = 'cartapro-v18';
 const SHELL_CACHE = 'cartapro-shell-v17';
 
 const BASE = '/mapas-taticos-pwa';
@@ -27,7 +27,7 @@ const SHELL_ASSETS = [
   `${BASE}/assets/icons/icon-512.png`,
 ];
 
-// ── Install ──────────────────────────────────────────────────
+// â”€â”€ Install â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(SHELL_CACHE).then(cache => cache.addAll(SHELL_ASSETS))
@@ -35,7 +35,7 @@ self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// ── Activate ─────────────────────────────────────────────────
+// â”€â”€ Activate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -49,11 +49,11 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// ── Fetch ─────────────────────────────────────────────────────
+// â”€â”€ Fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Tile requests → Cache-first (com fallback de rede e armazenamento)
+  // Tile requests â†’ Cache-first (com fallback de rede e armazenamento)
   const isTile = (
     url.hostname.includes('tile.openstreetmap.org') ||
     url.hostname.includes('opentopomap.org')       ||
@@ -78,7 +78,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Shell assets → Network-first com fallback de cache
+  // Shell assets â†’ Network-first com fallback de cache
   if (url.origin === self.location.origin) {
     event.respondWith(
       fetch(event.request)
@@ -90,3 +90,4 @@ self.addEventListener('fetch', event => {
     );
   }
 });
+
